@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Admin Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{height:100%;width:100%;margin:0;padding:0;font-family:'Prompt',sans-serif;background:#fff5f0;font-size:15px;color:#2d2d2d}
+    body{overflow-x:hidden}
+    :root{--o:#FF6B35;--od:#e05520;--ol:#fff0eb;--g2:linear-gradient(135deg,#FF6B35,#FF5E62);--mu:#888;--bd:#ffe0d4;--r:14px}
+
+    .tb{background:var(--g2);padding:0 16px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1030;box-shadow:0 3px 12px rgba(255,107,53,.28)}
+    .tb-brand{display:flex;align-items:center;gap:10px}
+    .tb-av{width:36px;height:36px;background:rgba(255,255,255,.22);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;border:2px solid rgba(255,255,255,.38)}
+    .tb-title{color:#fff;font-weight:700;font-size:.95rem;line-height:1.1}
+    .tb-sub{color:rgba(255,255,255,.78);font-size:.72rem}
+    .btn-lo{background:rgba(255,255,255,.16);border:1.5px solid rgba(255,255,255,.45);color:#fff;border-radius:50px;padding:6px 16px;font-size:.8rem;font-family:'Prompt',sans-serif;cursor:pointer}
+    .btn-lo:hover{background:rgba(255,255,255,.28)}
+
+    .tnw{background:#fff;border-bottom:2px solid var(--ol);position:sticky;top:58px;z-index:1020;overflow-x:auto;white-space:nowrap}
+    .tnw::-webkit-scrollbar{display:none}
+    .tni{display:inline-flex;padding:0 10px}
+    .tb2{display:inline-flex;align-items:center;gap:6px;padding:13px 16px;border:none;background:transparent;color:var(--mu);font-family:'Prompt',sans-serif;font-size:.83rem;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+    .tb2.active{color:var(--o);border-bottom-color:var(--o);font-weight:600}
+
+    .tp{display:none}.tp.active{display:block}
+    .pg{padding:18px 14px 100px}
+    .co{background:#fff;border-radius:var(--r);box-shadow:0 2px 10px rgba(255,107,53,.07);border:1px solid var(--bd);padding:16px;margin-bottom:14px}
+    .cot{border-top:4px solid var(--o)}
+    .st{font-size:.92rem;font-weight:700;color:var(--o);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:16px}
+    .stat{background:var(--ol);border-radius:10px;padding:12px;text-align:center}
+    .stat .n{font-size:1.5rem;font-weight:700;color:var(--o)}
+    .stat .l{font-size:.75rem;color:var(--mu);margin-top:2px}
+
+    .fb{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+    .fb select,.fb input{border:1.5px solid var(--bd);border-radius:10px;padding:7px 11px;font-family:'Prompt',sans-serif;font-size:.81rem;background:#fff;outline:none;flex:1 1 90px;min-width:80px;max-width:180px}
+
+    .bo{background:var(--g2);color:#fff;border:none;border-radius:50px;padding:8px 20px;font-family:'Prompt',sans-serif;font-size:.83rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 3px 10px rgba(255,107,53,.28)}
+    .boo{background:#fff;color:var(--o);border:1.5px solid var(--o);border-radius:50px;padding:7px 16px;font-family:'Prompt',sans-serif;font-size:.81rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+    .bic{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;margin:0 2px}
+    .bap{background:#4CAF50;color:#fff}.brj{background:#EF5350;color:#fff}.bvw{background:#42A5F5;color:#fff}.bca{background:#FF9800;color:#fff}.bde{background:#EF5350;color:#fff}
+    .w-100{width:100%}
+
+    .twrap{overflow-x:auto;border-radius:8px}
+    .dt{width:100%;border-collapse:collapse;font-size:.82rem}
+    .dt th{background:var(--ol);color:var(--o);padding:9px 10px;text-align:left;font-weight:600;border-bottom:2px solid var(--bd);position:sticky;top:0}
+    .dt td{padding:9px 10px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+    .dt tr:hover{background:#fff8f5}
+    .pl-st{display:inline-block;padding:2px 9px;border-radius:50px;font-size:.72rem;font-weight:600;white-space:nowrap}
+    .pls-w{background:#FFF3E0;color:#E65100}
+    .pls-c{background:#E1F5FE;color:#0277BD}
+    .pls-d{background:#E8F5E9;color:#2E7D32}
+    .pls-f{background:#FFEBEE;color:#B71C1C}
+
+    .fco{width:100%;border:1.5px solid var(--bd);border-radius:10px;padding:10px 12px;font-family:'Prompt',sans-serif;font-size:.86rem;outline:none;background:#fff}
+    .fco:focus{border-color:var(--o)}
+    .fgo{margin-bottom:12px}
+    .fgo label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:5px;font-weight:500}
+
+    .cls-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+    .cls-item{display:flex;align-items:center;gap:6px;padding:7px 10px;border:1.5px solid var(--bd);border-radius:8px;font-size:.82rem;cursor:pointer;background:#fff}
+    .cls-item:hover{background:var(--ol)}
+    .clist{display:flex;flex-wrap:wrap;gap:8px}
+    .clchip{display:inline-flex;align-items:center;gap:7px;padding:7px 14px 7px 14px;background:var(--ol);border:1.5px solid var(--bd);border-radius:50px;font-size:.83rem}
+
+    /* TOGGLE */
+    .tg-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .tg-lbl{font-size:.88rem;font-weight:600}
+    .tg-sub{font-size:.78rem;color:var(--mu)}
+    .sw{position:relative;display:inline-block;width:48px;height:26px}
+    .sw input{display:none}
+    .sl2{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:26px;transition:.3s}
+    .sl2::before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+    .sw input:checked + .sl2{background:#4CAF50}
+    .sw input:checked + .sl2::before{transform:translateX(22px)}
+
+    /* MODAL */
+    .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1500;align-items:center;justify-content:center;padding:18px}
+    .mo.open{display:flex}
+    .mc{background:#fff;border-radius:18px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+    .sh{background:var(--g2);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-radius:18px 18px 0 0}
+    .sh h4{font-size:.95rem;font-weight:700;margin:0}
+    .sx{background:rgba(255,255,255,.22);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer}
+    .sb{padding:18px}
+    .slip-img{width:100%;max-height:55vh;object-fit:contain;border-radius:10px;cursor:pointer;background:#f5f5f5}
+
+    /* LOADING */
+    .lov{display:none;position:fixed;inset:0;background:rgba(255,245,240,.9);z-index:2000;align-items:center;justify-content:center;flex-direction:column}
+    .lov.open{display:flex}
+    .ls{width:48px;height:48px;border:4px solid #f0f0f0;border-top-color:var(--o);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<div class="lov" id="lov"><div class="ls"></div><div id="lovTxt" style="margin-top:14px;font-size:.85rem;color:var(--o)">กำลังโหลด...</div></div>
+
+<!-- TOP BAR -->
+<div class="tb">
+  <div class="tb-brand">
+    <div class="tb-av"><i class="fas fa-user-shield"></i></div>
+    <div><div class="tb-title">Admin Dashboard</div><div class="tb-sub" id="adName">กำลังโหลด...</div></div>
+  </div>
+  <button class="btn-lo" onclick="logout()"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+</div>
+
+<!-- TABS -->
+<div class="tnw"><div class="tni">
+  <button class="tb2 active" onclick="sw('pay',this)"><i class="fas fa-money-bill-wave"></i> รายการชำระ</button>
+  <button class="tb2" onclick="sw('bill',this);onBillTab()"><i class="fas fa-file-invoice"></i> แจ้งหนี้</button>
+  <button class="tb2" onclick="sw('std',this);loadStudents()"><i class="fas fa-users"></i> นักเรียน</button>
+  <button class="tb2" onclick="sw('cls',this);loadClasses()"><i class="fas fa-chalkboard"></i> ห้องเรียน</button>
+  <button class="tb2" onclick="sw('cfg',this);loadSettings()"><i class="fas fa-cog"></i> ตั้งค่า</button>
+  <button class="tb2" id="tabAdmins" style="display:none" onclick="sw('adm',this);loadAdmins()"><i class="fas fa-user-shield"></i> ผู้ดูแล</button>
+</div></div>
+
+<!-- TAB: PAYMENTS -->
+<div class="tp active" id="tab-pay">
+  <div class="pg">
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="co cot">
+      <div class="fb">
+        <select id="fStat" onchange="loadPay()"><option value="ALL">ทุกสถานะ</option><option>รอชำระ</option><option>กำลังตรวจสอบ</option><option>ชำระแล้ว</option><option>ชำระไม่สำเร็จ</option></select>
+        <select id="fCls" onchange="loadPay()"><option value="ALL">ทุกห้อง</option></select>
+        <select id="fYear" onchange="loadPay()"><option value="ALL">ทุกปี</option></select>
+        <select id="fTerm" onchange="loadPay()"><option value="ALL">ทุกเทอม</option><option value="1">เทอม 1</option><option value="2">เทอม 2</option></select>
+        <button class="bo" onclick="expExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+      </div>
+      <div class="twrap"><table class="dt">
+        <thead><tr>
+          <th>ชื่อ-สกุล</th><th>ห้อง</th><th>รายการ</th><th>ปี/เทอม</th>
+          <th>ยอด</th><th>สถานะ</th><th>ผู้โอน</th><th>เวลา</th><th>จัดการ</th>
+        </tr></thead>
+        <tbody id="payTb"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: BILL -->
+<div class="tp" id="tab-bill">
+  <div class="pg">
+    <div class="co cot">
+      <div class="st"><i class="fas fa-plus-circle"></i> สร้างรายการแจ้งหนี้</div>
+      <div class="fgo"><label>หัวข้อรายการ</label><input type="text" id="bTitle" class="fco" placeholder="เช่น ค่าบำรุงการศึกษา ภาคเรียนที่ 1"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fgo"><label>ปีการศึกษา</label><input type="number" id="bYear" class="fco" placeholder="2568"></div>
+        <div class="fgo"><label>ภาคเรียน</label><select id="bTerm" class="fco"><option value="1">1</option><option value="2">2</option></select></div>
+      </div>
+      <div class="fgo"><label>ยอดเงิน (บาท)</label><input type="number" id="bAmt" class="fco" placeholder="0.00" step="0.01"></div>
+      <div class="fgo"><label>Link เอกสาร (ไม่บังคับ)</label><input type="text" id="bDoc" class="fco" placeholder="https://..."></div>
+      <div class="fgo">
+        <label>เลือกห้องเรียน</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button type="button" class="boo" onclick="selAll(true)"><i class="fas fa-check-square"></i> เลือกทั้งหมด</button>
+          <button type="button" class="boo" onclick="selAll(false)"><i class="fas fa-square"></i> ยกเลิก</button>
+        </div>
+        <div class="cls-grid" id="clsGrid"></div>
+      </div>
+      <button class="bo w-100" style="justify-content:center;padding:13px" onclick="doCreateBill()">
+        <i class="fas fa-paper-plane"></i> สร้างรายการแจ้งหนี้
+      </button>
+    </div>
+
+    <div class="co">
+      <div class="st"><i class="fas fa-history"></i> ประวัติการแจ้งหนี้</div>
+      <div id="billHist"><div style="text-align:center;color:#aaa;padding:20px">กำลังโหลด...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: STUDENTS -->
+<div class="tp" id="tab-std">
+  <div class="pg">
+    <div class="co cot">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="st" style="margin:0"><i class="fas fa-users"></i> รายชื่อนักเรียน (<span id="stdCnt">0</span> คน)</div>
+        <div style="display:flex;gap:8px">
+          <button class="bo" onclick="openAddStd()"><i class="fas fa-user-plus"></i> เพิ่ม</button>
+          <button class="boo" onclick="openImport()"><i class="fas fa-file-excel"></i> นำเข้า Excel</button>
+        </div>
+      </div>
+      <div style="position:relative;margin-bottom:10px">
+        <i class="fas fa-search" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#ccc;font-size:.85rem"></i>
+        <input type="text" class="fco" placeholder="ค้นหาชื่อ หรือ เลขบัตร..." style="padding-left:38px" oninput="filterStd(this.value)">
+      </div>
+      <div class="twrap"><table class="dt">
+        <thead><tr><th>เลขบัตร</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>ห้อง</th><th></th></tr></thead>
+        <tbody id="stdTb"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: CLASSES -->
+<div class="tp" id="tab-cls">
+  <div class="pg">
+    <div class="co cot">
+      <div class="st"><i class="fas fa-chalkboard"></i> จัดการห้องเรียน</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="newCls" class="fco" placeholder="ชื่อห้อง เช่น ม.1/1" style="flex:1;max-width:220px">
+        <button class="bo" onclick="doAddClass()"><i class="fas fa-plus"></i> เพิ่ม</button>
+      </div>
+      <div id="clsList" class="clist"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: SETTINGS -->
+<div class="tp" id="tab-cfg">
+  <div class="pg">
+    <div class="co cot">
+      <div class="st"><i class="fas fa-power-off"></i> สถานะระบบ</div>
+      <div class="tg-row">
+        <div><div class="tg-lbl">เปิด/ปิด ระบบนักเรียน</div><div class="tg-sub" id="statusLbl">กำลังโหลด...</div></div>
+        <label class="sw"><input type="checkbox" id="sysToggle"><span class="sl2"></span></label>
+      </div>
+      <div class="fgo" style="margin-top:12px">
+        <label>ข้อความแสดงเมื่อระบบปิด</label>
+        <input type="text" id="closedMsg" class="fco" placeholder="ระบบปิดให้บริการชั่วคราว...">
+      </div>
+    </div>
+
+    <div class="co">
+      <div class="st"><i class="fas fa-qrcode"></i> ข้อมูล QR Bill Payment</div>
+      <div class="fgo"><label>เลขประจำตัวผู้เสียภาษี 13 หลัก (Tax ID)</label>
+        <input type="text" id="sTaxId" class="fco" placeholder="1234567890123" maxlength="13" inputmode="numeric"></div>
+      <div class="fgo">
+        <label>Suffix 2 หลัก (ธนาคารกำหนด เช่น 00, 01, 02, 99)</label>
+        <input type="text" id="sSuffix" class="fco" placeholder="00" maxlength="2" inputmode="numeric">
+        <div style="font-size:.75rem;color:#FF6B35;margin-top:5px"><i class="fas fa-info-circle"></i> ถ้าสแกน QR แล้วขึ้น "ไม่พบบัญชีหน่วยงาน" ให้ลองเปลี่ยน Suffix</div>
+      </div>
+    </div>
+
+    <div class="co">
+      <div class="st"><i class="fas fa-school"></i> ข้อมูลโรงเรียน</div>
+      <div class="fgo"><label>ชื่อโรงเรียน</label><input type="text" id="sSchool" class="fco" placeholder="โรงเรียน..."></div>
+      <div class="fgo"><label>URL รูปโลโก้</label><input type="text" id="sLogo" class="fco" placeholder="https://..."></div>
+    </div>
+
+    <div class="co">
+      <div class="st"><i class="fas fa-bullhorn"></i> ประกาศข่าวสาร (แสดงในหน้าผู้ปกครอง)</div>
+      <div class="tg-row" style="margin-bottom:12px">
+        <div><div class="tg-lbl">เปิด/ปิด การแสดงประกาศ</div><div class="tg-sub" id="annoLbl">ปิดอยู่</div></div>
+        <label class="sw"><input type="checkbox" id="annoToggle"><span class="sl2"></span></label>
+      </div>
+      <div class="fgo">
+        <label>ข้อความประกาศ</label>
+        <textarea id="sAnno" class="fco" rows="3" placeholder="เช่น ระบบจะปิดปรับปรุงวันที่ 15 พ.ค. เวลา 22:00-24:00" style="resize:vertical"></textarea>
+      </div>
+    </div>
+
+    <button class="bo w-100" style="justify-content:center;padding:13px" onclick="saveAllSettings()">
+      <i class="fas fa-save"></i> บันทึกการตั้งค่าทั้งหมด
+    </button>
+
+    <div class="co" style="margin-top:14px">
+      <div class="st"><i class="fas fa-key"></i> เปลี่ยนรหัสผ่าน</div>
+      <div class="fgo"><label>รหัสผ่านเดิม</label><input type="password" id="oldPwd" class="fco"></div>
+      <div class="fgo"><label>รหัสผ่านใหม่</label><input type="password" id="newPwd" class="fco" placeholder="อย่างน้อย 6 ตัวอักษร"></div>
+      <button class="bo" onclick="doChangePwd()"><i class="fas fa-save"></i> เปลี่ยนรหัสผ่าน</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: ADMINS (เฉพาะ superadmin) -->
+<div class="tp" id="tab-adm">
+  <div class="pg">
+    <div class="co cot">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="st" style="margin:0"><i class="fas fa-user-shield"></i> รายชื่อผู้ดูแลระบบ</div>
+        <button class="bo" onclick="openAddAdmin()"><i class="fas fa-user-plus"></i> เพิ่มผู้ดูแล</button>
+      </div>
+      <div class="twrap"><table class="dt">
+        <thead><tr><th>Username</th><th>ชื่อ</th><th>สิทธิ์</th><th>วันที่สร้าง</th><th>จัดการ</th></tr></thead>
+        <tbody id="admTb"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Admin -->
+<div class="mo" id="addAdmModal">
+  <div class="mc">
+    <div class="sh"><h4><i class="fas fa-user-plus"></i> เพิ่มผู้ดูแลระบบ</h4><button class="sx" onclick="closeModal('addAdmModal')">✕</button></div>
+    <div class="sb">
+      <div class="fgo"><label>Username (อย่างน้อย 3 ตัว)</label><input id="aaUser" class="fco" placeholder="เช่น manager"></div>
+      <div class="fgo"><label>ชื่อ-สกุล</label><input id="aaName" class="fco" placeholder="ชื่อแสดงใน Dashboard"></div>
+      <div class="fgo"><label>รหัสผ่าน (อย่างน้อย 6 ตัว)</label><input id="aaPwd" type="password" class="fco" placeholder="รหัสผ่าน"></div>
+      <div class="fgo"><label>สิทธิ์</label>
+        <select id="aaRole" class="fco">
+          <option value="admin">Admin (ทั่วไป)</option>
+          <option value="superadmin">Super Admin (จัดการ admin ได้)</option>
+        </select>
+      </div>
+      <button class="bo w-100" style="justify-content:center" onclick="saveAdmin()"><i class="fas fa-save"></i> บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Reset Admin Password -->
+<div class="mo" id="resetPwdModal">
+  <div class="mc">
+    <div class="sh"><h4><i class="fas fa-key"></i> รีเซ็ตรหัสผ่าน</h4><button class="sx" onclick="closeModal('resetPwdModal')">✕</button></div>
+    <div class="sb">
+      <div class="fgo"><label>Username</label><input id="rpUser" class="fco" readonly></div>
+      <div class="fgo"><label>รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)</label><input id="rpPwd" type="text" class="fco" placeholder="รหัสผ่านใหม่"></div>
+      <button class="bo w-100" style="justify-content:center" onclick="saveResetPwd()"><i class="fas fa-save"></i> รีเซ็ต</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: View Slip -->
+<div class="mo" id="slipModal">
+  <div class="mc">
+    <div class="sh"><h4><i class="fas fa-receipt"></i> ตรวจสอบสลิป</h4><button class="sx" onclick="closeSlip()">✕</button></div>
+    <div class="sb">
+      <img id="slipImg" src="" alt="slip" class="slip-img" onclick="window.open(this.src,'_blank')">
+      <div id="slipMeta" style="margin-top:14px;font-size:.85rem;line-height:1.7"></div>
+      <div id="slipAct" style="display:flex;gap:8px;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Student -->
+<div class="mo" id="addStdModal">
+  <div class="mc">
+    <div class="sh"><h4><i class="fas fa-user-plus"></i> เพิ่มนักเรียน</h4><button class="sx" onclick="closeModal('addStdModal')">✕</button></div>
+    <div class="sb">
+      <div class="fgo"><label>เลขบัตรประชาชน</label><input id="aID" class="fco" placeholder="13 หลัก" inputmode="numeric" maxlength="13"></div>
+      <div class="fgo"><label>รหัสนักเรียน</label><input id="aSID" class="fco" placeholder="รหัสนักเรียน"></div>
+      <div class="fgo"><label>ชื่อ-สกุล</label><input id="aNm" class="fco" placeholder="ชื่อ นามสกุล"></div>
+      <div class="fgo"><label>ห้องเรียน</label><select id="aCls" class="fco"></select></div>
+      <div class="fgo"><label>URL รูปภาพ (ไม่บังคับ)</label><input id="aImg" class="fco" placeholder="https://..."></div>
+      <button class="bo w-100" style="justify-content:center" onclick="saveStd()"><i class="fas fa-save"></i> บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Import Excel -->
+<div class="mo" id="impModal">
+  <div class="mc">
+    <div class="sh"><h4><i class="fas fa-file-excel"></i> นำเข้าจาก Excel</h4><button class="sx" onclick="closeModal('impModal')">✕</button></div>
+    <div class="sb">
+      <div style="font-size:.82rem;color:var(--mu);margin-bottom:10px">
+        โครงสร้าง Excel (แถวแรก = header):<br>
+        <code>ID_Card | Student_ID | Name | Class | Image_URL</code>
+      </div>
+      <input type="file" id="xlFile" class="fco" accept=".xlsx,.xls" style="padding:9px">
+      <button class="bo w-100" style="justify-content:center;margin-top:14px" onclick="doImport()"><i class="fas fa-upload"></i> นำเข้า</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="/app.js"></script>
+<script>
+// ── AUTH GUARD ──
+if(!localStorage.getItem('adminToken')){
+  window.location.href = '/admin';
+}
+var adminName = localStorage.getItem('adminName') || 'Admin';
+var adminRole = localStorage.getItem('adminRole') || 'admin';
+var allPayData = [];
+var allStudents = [];
+
+document.getElementById('adName').innerText = adminName + (adminRole==='superadmin'?' (Super Admin)':'');
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', function(){
+  initYear();
+  loadPay();
+  loadSettings();
+  refreshClsDropdowns();
+});
+
+// ── TABS ──
+function sw(id, btn){
+  document.querySelectorAll('.tp').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tb2').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── LOADING ──
+function loading(show, txt){
+  document.getElementById('lov').classList[show?'add':'remove']('open');
+  if(txt) document.getElementById('lovTxt').innerText = txt;
+}
+function toast(icon, text){ Swal.fire({icon:icon,text:text,toast:true,position:'top',timer:2000,showConfirmButton:false}); }
+function logout(){ adminLogout(); }
+
+// ── YEAR SELECT ──
+function initYear(){
+  var cy = new Date().getFullYear() + 543;
+  var sel = document.getElementById('fYear');
+  sel.innerHTML = '<option value="ALL">ทุกปี</option>';
+  for(var y=cy;y>=cy-5;y--) sel.innerHTML += '<option value="'+y+'">'+y+'</option>';
+  document.getElementById('bYear').value = cy;
+}
+
+// ══════════════════════════════
+// PAYMENTS
+// ══════════════════════════════
+function loadPay(){
+  var qs = [
+    'status=' + encodeURIComponent(document.getElementById('fStat').value),
+    'cls='    + encodeURIComponent(document.getElementById('fCls').value),
+    'year='   + encodeURIComponent(document.getElementById('fYear').value),
+    'term='   + encodeURIComponent(document.getElementById('fTerm').value)
+  ].join('&');
+
+  api('/admin/payments?' + qs)
+    .then(function(d){ allPayData = d.payments || []; renderPay(allPayData); renderStats(allPayData); })
+    .catch(function(e){
+      if(/401|ไม่ได้รับอนุญาต/.test(e.message)){ adminLogout(); return; }
+      Swal.fire('Error', e.message || 'โหลดไม่สำเร็จ', 'error');
+    });
+}
+
+function renderStats(d){
+  var tot=d.length, roc=0, chk=0, dn=0, fl=0, amt=0;
+  d.forEach(function(r){
+    if(r.status==='รอชำระ') roc++;
+    else if(r.status==='กำลังตรวจสอบ') chk++;
+    else if(r.status==='ชำระแล้ว'){ dn++; amt+=Number(r.amount)||0; }
+    else if(r.status==='ชำระไม่สำเร็จ') fl++;
+  });
+  document.getElementById('statGrid').innerHTML =
+    '<div class="stat"><div class="n">'+tot+'</div><div class="l">ทั้งหมด</div></div>'+
+    '<div class="stat"><div class="n">'+roc+'</div><div class="l">รอชำระ</div></div>'+
+    '<div class="stat"><div class="n">'+chk+'</div><div class="l">รอตรวจสอบ</div></div>'+
+    '<div class="stat"><div class="n">'+dn+'</div><div class="l">ชำระแล้ว</div></div>'+
+    '<div class="stat"><div class="n">'+fl+'</div><div class="l">ไม่ผ่าน</div></div>'+
+    '<div class="stat"><div class="n">฿'+amt.toLocaleString()+'</div><div class="l">รวมรับ</div></div>';
+}
+
+function renderPay(d){
+  var tb = document.getElementById('payTb');
+  if(!d || !d.length){
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:30px">ไม่พบรายการ</td></tr>';
+    return;
+  }
+  var html = '';
+  d.forEach(function(r){
+    var cls='pls-w', txt='รอชำระ';
+    if(r.status==='กำลังตรวจสอบ'){cls='pls-c';txt='รอตรวจสอบ';}
+    else if(r.status==='ชำระแล้ว'){cls='pls-d';txt='ชำระแล้ว';}
+    else if(r.status==='ชำระไม่สำเร็จ'){cls='pls-f';txt='ไม่ผ่าน';}
+
+    var act='';
+    if(r.status==='กำลังตรวจสอบ' || r.status==='ชำระไม่สำเร็จ'){
+      act='<button class="bic bap" title="อนุมัติ" onclick="doApprove(\''+r.transId+'\')"><i class="fas fa-check"></i></button>'
+         +'<button class="bic brj" title="ปฏิเสธ" onclick="doReject(\''+r.transId+'\')"><i class="fas fa-times"></i></button>';
+    }
+    if(r.slipUrl) act+='<button class="bic bvw" title="ดูสลิป" onclick="openSlip(\''+r.transId+'\')"><i class="fas fa-image"></i></button>';
+    if(r.status==='รอชำระ') act+='<button class="bic bca" title="รับเงินสด" onclick="doCash(\''+r.transId+'\')"><i class="fas fa-money-bill"></i></button>';
+
+    var t = r.timestamp ? new Date(r.timestamp).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'}) : '-';
+
+    html += '<tr>'
+      +'<td>'+(r.studentName||'-')+'</td>'
+      +'<td>'+(r.studentClass||'-')+'</td>'
+      +'<td>'+(r.title||'-')+'</td>'
+      +'<td>'+r.year+'/'+r.term+'</td>'
+      +'<td style="text-align:right;font-weight:600">฿'+Number(r.amount).toLocaleString()+'</td>'
+      +'<td><span class="pl-st '+cls+'">'+txt+'</span></td>'
+      +'<td>'+(r.payerName||'-')+'</td>'
+      +'<td>'+t+'</td>'
+      +'<td>'+act+'</td>'
+      +'</tr>';
+  });
+  tb.innerHTML = html;
+}
+
+function actionPayment(transId, action, reason){
+  return api('/admin/payment-action', { method:'POST', body: { transId, action, reason: reason||'' } });
+}
+function doApprove(id){
+  Swal.fire({title:'อนุมัติการชำระ?',icon:'question',showCancelButton:true,confirmButtonColor:'#4CAF50',confirmButtonText:'อนุมัติ',cancelButtonText:'ยกเลิก'})
+    .then(function(r){ if(r.isConfirmed) actionPayment(id,'approve').then(function(){ loadPay(); toast('success','อนุมัติแล้ว'); }); });
+}
+function doReject(id){
+  Swal.fire({title:'ปฏิเสธการชำระ?',input:'text',inputLabel:'เหตุผล',icon:'warning',showCancelButton:true,confirmButtonColor:'#EF5350',confirmButtonText:'ปฏิเสธ',cancelButtonText:'ยกเลิก'})
+    .then(function(r){ if(r.isConfirmed) actionPayment(id,'reject',r.value||'').then(function(){ loadPay(); toast('success','ปฏิเสธแล้ว'); }); });
+}
+function doCash(id){
+  Swal.fire({title:'บันทึกชำระเงินสด?',icon:'question',showCancelButton:true,confirmButtonColor:'#FF9800',confirmButtonText:'บันทึก',cancelButtonText:'ยกเลิก'})
+    .then(function(r){ if(r.isConfirmed) actionPayment(id,'cash').then(function(){ loadPay(); toast('success','บันทึกแล้ว'); }); });
+}
+
+// ── SLIP MODAL ──
+function openSlip(tid){
+  var p = allPayData.find(function(r){ return r.transId===tid; });
+  if(!p) return;
+  document.getElementById('slipImg').src = p.slipUrl;
+  document.getElementById('slipMeta').innerHTML =
+    '<strong>'+p.studentName+'</strong> ('+p.studentClass+')<br>'
+    +'รายการ: '+p.title+'<br>'
+    +'ผู้โอน: '+(p.payerName||'-')+'<br>'
+    +'ยอด: ฿'+Number(p.amount).toLocaleString();
+  var act = document.getElementById('slipAct');
+  if(p.status==='กำลังตรวจสอบ' || p.status==='ชำระไม่สำเร็จ'){
+    act.innerHTML = '<button class="bo" style="background:#4CAF50;flex:1;justify-content:center" onclick="doApprove(\''+tid+'\');closeSlip()"><i class="fas fa-check"></i> อนุมัติ</button>'
+                  + '<button class="bo" style="background:#EF5350;flex:1;justify-content:center" onclick="doReject(\''+tid+'\');closeSlip()"><i class="fas fa-times"></i> ปฏิเสธ</button>';
+  } else act.innerHTML = '';
+  document.getElementById('slipModal').classList.add('open');
+}
+function closeSlip(){ document.getElementById('slipModal').classList.remove('open'); }
+
+// ── EXCEL EXPORT ──
+function expExcel(){
+  if(!allPayData.length){ toast('warning','ไม่มีข้อมูล'); return; }
+  var rows = allPayData.map(function(r){
+    return {
+      'ชื่อ-สกุล': r.studentName, 'ห้อง': r.studentClass, 'รายการ': r.title,
+      'ปี': r.year, 'เทอม': r.term, 'ยอด': r.amount, 'สถานะ': r.status,
+      'ผู้โอน': r.payerName, 'หมายเหตุ': r.reason,
+      'เวลา': r.timestamp ? new Date(r.timestamp).toLocaleString('th-TH') : ''
+    };
+  });
+  var ws = XLSX.utils.json_to_sheet(rows);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Payments');
+  XLSX.writeFile(wb, 'payments_'+new Date().getTime()+'.xlsx');
+}
+
+// ══════════════════════════════
+// BILL TAB
+// ══════════════════════════════
+function onBillTab(){ refreshClsDropdowns(); loadBillHistory(); }
+
+function refreshClsDropdowns(){
+  api('/admin/classes').then(function(r){
+    var classes = r.classes || [];
+    var fCls = document.getElementById('fCls');
+    fCls.innerHTML = '<option value="ALL">ทุกห้อง</option>';
+    classes.forEach(function(c){ fCls.innerHTML += '<option value="'+c+'">'+c+'</option>'; });
+
+    var g = document.getElementById('clsGrid');
+    g.innerHTML = '';
+    classes.forEach(function(x){
+      g.innerHTML += '<label class="cls-item"><input type="checkbox" class="clsCb" value="'+x+'"> '+x+'</label>';
+    });
+
+    var aCls = document.getElementById('aCls');
+    aCls.innerHTML = '';
+    classes.forEach(function(c){ aCls.innerHTML += '<option value="'+c+'">'+c+'</option>'; });
+  });
+}
+
+function selAll(yes){
+  document.querySelectorAll('.clsCb').forEach(function(cb){ cb.checked = yes; });
+}
+
+function doCreateBill(){
+  var title = document.getElementById('bTitle').value.trim();
+  var year  = document.getElementById('bYear').value;
+  var term  = document.getElementById('bTerm').value;
+  var amt   = parseFloat(document.getElementById('bAmt').value);
+  var doc   = document.getElementById('bDoc').value.trim();
+  var sel   = Array.from(document.querySelectorAll('.clsCb:checked')).map(function(cb){ return cb.value; });
+
+  if(!title || !year || !term || !amt) return Swal.fire('แจ้งเตือน','กรอกข้อมูลให้ครบ','warning');
+  if(!sel.length) return Swal.fire('แจ้งเตือน','เลือกห้องเรียนอย่างน้อย 1 ห้อง','warning');
+
+  Swal.fire({title:'ยืนยันการสร้างรายการ?',html:'จำนวน '+sel.length+' ห้อง<br>ยอด ฿'+amt.toLocaleString(),icon:'question',showCancelButton:true,confirmButtonColor:'#FF6B35',confirmButtonText:'สร้าง',cancelButtonText:'ยกเลิก'})
+    .then(function(r){
+      if(!r.isConfirmed) return;
+      loading(true, 'กำลังสร้างรายการ...');
+      api('/admin/create-bill', { method:'POST', body: {
+        title, year, term, amount: amt, docUrl: doc, targetClasses: sel, adminName
+      }}).then(function(res){
+        loading(false);
+        Swal.fire('สำเร็จ!','สร้างรายการ '+res.count+' รายการเรียบร้อย','success');
+        document.getElementById('bTitle').value = '';
+        document.getElementById('bAmt').value = '';
+        loadBillHistory();
+      }).catch(function(e){
+        loading(false);
+        Swal.fire('Error', e.message, 'error');
+      });
+    });
+}
+
+function loadBillHistory(){
+  api('/admin/billing-history').then(function(r){
+    var box = document.getElementById('billHist');
+    var hist = r.history || [];
+    if(!hist.length){ box.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px">ยังไม่มีประวัติ</div>'; return; }
+    var html = '<div class="twrap"><table class="dt"><thead><tr><th>เวลา</th><th>ผู้สร้าง</th><th>ปี/เทอม</th><th>ห้อง</th><th>จำนวน</th></tr></thead><tbody>';
+    hist.forEach(function(h){
+      var d = new Date(h.date).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'});
+      html += '<tr><td>'+d+'</td><td>'+h.admin+'</td><td>'+h.year+'/'+h.term+'</td><td style="font-size:.78rem">'+h.target+'</td><td>'+h.count+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    box.innerHTML = html;
+  });
+}
+
+// ══════════════════════════════
+// STUDENTS
+// ══════════════════════════════
+function loadStudents(){
+  api('/admin/students').then(function(r){
+    allStudents = r.students || [];
+    document.getElementById('stdCnt').innerText = allStudents.length;
+    renderStd(allStudents);
+  });
+}
+
+function renderStd(d){
+  var tb = document.getElementById('stdTb');
+  if(!d.length){ tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">ไม่มีข้อมูล</td></tr>'; return; }
+  tb.innerHTML = d.map(function(s){
+    return '<tr>'
+      +'<td>'+s.idCard+'</td>'
+      +'<td>'+(s.studentId||'-')+'</td>'
+      +'<td>'+s.name+'</td>'
+      +'<td>'+(s.class||'-')+'</td>'
+      +'<td><button class="bic bde" onclick="doDelStd(\''+s.idCard+'\')"><i class="fas fa-trash"></i></button></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function filterStd(q){
+  q = q.trim().toLowerCase();
+  var f = !q ? allStudents : allStudents.filter(function(s){
+    return (s.name||'').toLowerCase().includes(q) || (s.idCard||'').includes(q);
+  });
+  renderStd(f);
+}
+
+function openAddStd(){
+  document.getElementById('aID').value = '';
+  document.getElementById('aSID').value = '';
+  document.getElementById('aNm').value = '';
+  document.getElementById('aImg').value = '';
+  document.getElementById('addStdModal').classList.add('open');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function saveStd(){
+  var p = {
+    idCard: document.getElementById('aID').value.trim(),
+    studentId: document.getElementById('aSID').value.trim(),
+    name: document.getElementById('aNm').value.trim(),
+    class: document.getElementById('aCls').value,
+    imageUrl: document.getElementById('aImg').value.trim()
+  };
+  if(!p.idCard || p.idCard.length!==13) return toast('warning','เลขบัตรต้อง 13 หลัก');
+  if(!p.name) return toast('warning','กรอกชื่อ');
+
+  api('/admin/students', { method:'POST', body: p })
+    .then(function(){ closeModal('addStdModal'); loadStudents(); toast('success','เพิ่มสำเร็จ'); })
+    .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+function doDelStd(id){
+  Swal.fire({title:'ลบนักเรียนคนนี้?',icon:'warning',showCancelButton:true,confirmButtonColor:'#EF5350'})
+    .then(function(r){
+      if(r.isConfirmed){
+        api('/admin/students?idCard='+encodeURIComponent(id), { method:'DELETE' })
+          .then(function(){ loadStudents(); toast('success','ลบแล้ว'); })
+          .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+      }
+    });
+}
+
+function openImport(){ document.getElementById('xlFile').value=''; document.getElementById('impModal').classList.add('open'); }
+function doImport(){
+  var f = document.getElementById('xlFile').files[0];
+  if(!f) return toast('warning','เลือกไฟล์ก่อน');
+  var rdr = new FileReader();
+  rdr.onload = function(e){
+    try {
+      var wb = XLSX.read(e.target.result, { type:'array' });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws);
+      if(!rows.length) return toast('warning','ไฟล์ว่าง');
+
+      loading(true, 'กำลังนำเข้า...');
+      api('/admin/students', { method:'POST', body: { list: rows } })
+        .then(function(r){
+          loading(false);
+          closeModal('impModal');
+          Swal.fire('สำเร็จ!','นำเข้า '+r.count+' รายการ','success');
+          loadStudents();
+        })
+        .catch(function(err){ loading(false); Swal.fire('Error', err.message, 'error'); });
+    } catch(err){ Swal.fire('Error','อ่านไฟล์ไม่สำเร็จ: '+err.message,'error'); }
+  };
+  rdr.readAsArrayBuffer(f);
+}
+
+// ══════════════════════════════
+// CLASSES
+// ══════════════════════════════
+function loadClasses(){
+  api('/admin/classes').then(function(r){
+    var box = document.getElementById('clsList');
+    var classes = r.classes || [];
+    if(!classes.length){ box.innerHTML = '<div style="color:#aaa">ยังไม่มีห้องเรียน</div>'; return; }
+    box.innerHTML = classes.map(function(x){
+      return '<div class="clchip">'+x
+        +'<button class="bic bde" style="width:24px;height:24px" onclick="doDelClass(\''+x+'\')"><i class="fas fa-times" style="font-size:.7rem"></i></button>'
+        +'</div>';
+    }).join('');
+  });
+}
+
+function doAddClass(){
+  var n = document.getElementById('newCls').value.trim();
+  if(!n) return toast('warning','กรอกชื่อห้อง');
+  api('/admin/classes', { method:'POST', body:{ className:n } })
+    .then(function(){ document.getElementById('newCls').value=''; loadClasses(); refreshClsDropdowns(); toast('success','เพิ่มห้องแล้ว'); })
+    .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+function doDelClass(n){
+  Swal.fire({title:'ลบห้อง '+n+'?',icon:'warning',showCancelButton:true,confirmButtonColor:'#EF5350'})
+    .then(function(r){
+      if(r.isConfirmed){
+        api('/admin/classes?className='+encodeURIComponent(n), { method:'DELETE' })
+          .then(function(){ loadClasses(); refreshClsDropdowns(); toast('success','ลบแล้ว'); });
+      }
+    });
+}
+
+// ══════════════════════════════
+// SETTINGS
+// ══════════════════════════════
+function loadSettings(){
+  api('/settings').then(function(c){
+    document.getElementById('sysToggle').checked = c.systemStatus === 'ON';
+    document.getElementById('statusLbl').innerText = c.systemStatus === 'ON' ? 'ระบบเปิดใช้งาน' : 'ระบบปิดอยู่';
+    document.getElementById('closedMsg').value = c.closedMessage || '';
+    document.getElementById('sTaxId').value = c.taxId || '';
+    document.getElementById('sSuffix').value = c.billerSuffix || '00';
+    document.getElementById('sSchool').value = c.schoolName || '';
+    document.getElementById('sLogo').value = c.logoUrl || '';
+    document.getElementById('annoToggle').checked = c.announcementOn === 'ON';
+    document.getElementById('annoLbl').innerText = c.announcementOn === 'ON' ? 'แสดงประกาศ' : 'ปิดอยู่';
+    document.getElementById('sAnno').value = c.announcement || '';
+  });
+}
+
+function saveAllSettings(){
+  var data = {
+    systemStatus:    document.getElementById('sysToggle').checked ? 'ON' : 'OFF',
+    closedMessage:   document.getElementById('closedMsg').value.trim(),
+    taxId:           document.getElementById('sTaxId').value.trim(),
+    billerSuffix:    document.getElementById('sSuffix').value.trim() || '00',
+    schoolName:      document.getElementById('sSchool').value.trim(),
+    logoUrl:         document.getElementById('sLogo').value.trim(),
+    announcement:    document.getElementById('sAnno').value.trim(),
+    announcementOn:  document.getElementById('annoToggle').checked ? 'ON' : 'OFF'
+  };
+  api('/settings', { method:'POST', body: data })
+    .then(function(){
+      toast('success','บันทึกการตั้งค่าแล้ว');
+      document.getElementById('statusLbl').innerText = data.systemStatus==='ON'?'ระบบเปิดใช้งาน':'ระบบปิดอยู่';
+      document.getElementById('annoLbl').innerText = data.announcementOn==='ON'?'แสดงประกาศ':'ปิดอยู่';
+    })
+    .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+function doChangePwd(){
+  var oldP = document.getElementById('oldPwd').value;
+  var newP = document.getElementById('newPwd').value;
+  if(!oldP || !newP) return toast('warning','กรอกข้อมูลให้ครบ');
+  if(newP.length < 6) return toast('warning','รหัสใหม่อย่างน้อย 6 ตัว');
+
+  api('/auth?action=change-password', { method:'POST', body: { oldPassword:oldP, newPassword:newP } })
+    .then(function(){
+      Swal.fire('สำเร็จ','เปลี่ยนรหัสผ่านแล้ว กรุณาเข้าสู่ระบบใหม่','success').then(adminLogout);
+    })
+    .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+// ══════════════════════════════
+// ADMIN MANAGEMENT (เฉพาะ superadmin)
+// ══════════════════════════════
+if (adminRole === 'superadmin') {
+  var tabEl = document.getElementById('tabAdmins');
+  if (tabEl) tabEl.style.display = 'inline-flex';
+}
+
+function loadAdmins(){
+  api('/admin/manage-admins').then(function(r){
+    var tb = document.getElementById('admTb');
+    var admins = r.admins || [];
+    if(!admins.length){
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">ไม่มีข้อมูล</td></tr>';
+      return;
+    }
+    var meUsername = localStorage.getItem('adminUsername');
+    tb.innerHTML = admins.map(function(a){
+      var d = new Date(a.created_at).toLocaleDateString('th-TH');
+      var roleBadge = a.role === 'superadmin'
+        ? '<span class="pl-st pls-d">Super Admin</span>'
+        : '<span class="pl-st pls-c">Admin</span>';
+      var actions = '';
+      actions += '<button class="bic bca" title="รีเซ็ตรหัส" onclick="openResetPwd(\''+a.username+'\')"><i class="fas fa-key"></i></button>';
+      if (a.username !== meUsername) {
+        actions += '<button class="bic bde" title="ลบ" onclick="doDelAdmin(\''+a.username+'\')"><i class="fas fa-trash"></i></button>';
+      }
+      return '<tr>'
+        +'<td><strong>'+a.username+'</strong></td>'
+        +'<td>'+(a.name||'-')+'</td>'
+        +'<td>'+roleBadge+'</td>'
+        +'<td>'+d+'</td>'
+        +'<td>'+actions+'</td>'
+        +'</tr>';
+    }).join('');
+  }).catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+function openAddAdmin(){
+  document.getElementById('aaUser').value = '';
+  document.getElementById('aaName').value = '';
+  document.getElementById('aaPwd').value = '';
+  document.getElementById('aaRole').value = 'admin';
+  document.getElementById('addAdmModal').classList.add('open');
+}
+
+function saveAdmin(){
+  var data = {
+    username: document.getElementById('aaUser').value.trim(),
+    name:     document.getElementById('aaName').value.trim(),
+    password: document.getElementById('aaPwd').value,
+    role:     document.getElementById('aaRole').value
+  };
+  if(!data.username || data.username.length<3) return toast('warning','Username อย่างน้อย 3 ตัว');
+  if(!data.password || data.password.length<6) return toast('warning','รหัสผ่านอย่างน้อย 6 ตัว');
+
+  api('/admin/manage-admins', { method:'POST', body: data })
+    .then(function(){
+      closeModal('addAdmModal');
+      loadAdmins();
+      toast('success','เพิ่มผู้ดูแลแล้ว');
+    })
+    .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+function openResetPwd(username){
+  document.getElementById('rpUser').value = username;
+  document.getElementById('rpPwd').value = '';
+  document.getElementById('resetPwdModal').classList.add('open');
+}
+
+function saveResetPwd(){
+  var username = document.getElementById('rpUser').value;
+  var newPwd = document.getElementById('rpPwd').value;
+  if(!newPwd || newPwd.length<6) return toast('warning','รหัสผ่านอย่างน้อย 6 ตัว');
+
+  api('/admin/manage-admins?action=reset', { method:'POST', body:{ username, newPassword: newPwd } })
+    .then(function(){
+      closeModal('resetPwdModal');
+      Swal.fire('สำเร็จ','รีเซ็ตรหัสผ่าน '+username+' เป็น "'+newPwd+'"','success');
+    })
+    .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+function doDelAdmin(username){
+  Swal.fire({
+    title:'ลบผู้ดูแล '+username+'?',
+    text:'การลบไม่สามารถย้อนกลับได้',
+    icon:'warning',
+    showCancelButton:true,
+    confirmButtonColor:'#EF5350',
+    confirmButtonText:'ลบ',
+    cancelButtonText:'ยกเลิก'
+  }).then(function(r){
+    if(r.isConfirmed){
+      api('/admin/manage-admins?username='+encodeURIComponent(username), { method:'DELETE' })
+        .then(function(){ loadAdmins(); toast('success','ลบแล้ว'); })
+        .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+    }
+  });
+}
+
+// ── Modal close on backdrop click ──
+['slipModal','addStdModal','impModal','addAdmModal','resetPwdModal'].forEach(function(id){
+  var el = document.getElementById(id);
+  if(el) el.addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
