@@ -342,13 +342,13 @@
     .ql{font-size:.84rem;font-weight:700;color:#1565C0;margin-bottom:12px}
     [data-theme="dark"] .ql{color:#64B5F6}
     .qr-wrap{display:inline-block;min-height:180px;min-width:180px;position:relative}
-    .qr-wrap img,.qr-wrap canvas{
+    .qr-wrap svg,.qr-wrap img,.qr-wrap canvas{
       width:180px!important;height:180px!important;
       border-radius:14px;padding:8px;background:#fff;
       box-shadow:0 6px 20px rgba(0,0,0,.12);display:block;
       transition:transform var(--transition);
     }
-    .qr-wrap:hover img,.qr-wrap:hover canvas{transform:scale(1.05)}
+    .qr-wrap:hover svg,.qr-wrap:hover img,.qr-wrap:hover canvas{transform:scale(1.05)}
     .qr-refs{display:flex;justify-content:center;gap:10px;margin-top:13px;flex-wrap:wrap}
     .qr-chip{
       background:#fff;border:1.5px solid #DBEAFE;border-radius:10px;
@@ -638,7 +638,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script src="/app.js"></script>
 <script>
 /* ════════════════════════════════
@@ -835,8 +835,8 @@ function renderResult(data){
           attempts++;
           var el = document.getElementById(elemId);
           if(!el) return;
-          if(typeof QRCode === 'undefined'){
-            if(attempts < 20){ setTimeout(tryRender, 200); return; }
+          if(typeof qrcode === 'undefined'){
+            if(attempts < 30){ setTimeout(tryRender, 150); return; }
             el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ โหลด QR Library ไม่สำเร็จ</div>';
             return;
           }
@@ -846,25 +846,34 @@ function renderResult(data){
             el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ ข้อมูลตั้งค่าไม่ถูกต้อง<br>('+msg+')</div>';
             return;
           }
-          el.innerHTML = '';
           try {
-            new QRCode(el, { text:payload, width:180, height:180, colorDark:'#000', colorLight:'#fff', correctLevel:QRCode.CorrectLevel.M });
-          } catch(err){
-            el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ สร้าง QR ไม่สำเร็จ</div>';
-            return;
-          }
-          var checkCount = 0;
-          function pickElement(){
-            checkCount++;
-            var img = el.querySelector('img');
-            var cvs = el.querySelector('canvas');
-            if(img && img.complete && img.naturalWidth > 0){
-              if(cvs) cvs.style.display = 'none'; return;
+            // typeNumber: 0 = auto detect, errorCorrectionLevel: 'M'
+            var qr = qrcode(0, 'M');
+            qr.addData(payload);
+            qr.make();
+            // สร้าง SVG ที่ใช้ได้บนทุกมือถือ — ไม่พึ่ง image loading
+            // cellSize 6 × moduleCount = ขนาด QR
+            var moduleCount = qr.getModuleCount();
+            var cellSize = Math.floor(180 / moduleCount);
+            var size = cellSize * moduleCount;
+            var margin = Math.floor((180 - size) / 2);
+
+            var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" shape-rendering="crispEdges" style="display:block">';
+            svg += '<rect width="180" height="180" fill="#fff"/>';
+            for (var r = 0; r < moduleCount; r++) {
+              for (var c = 0; c < moduleCount; c++) {
+                if (qr.isDark(r, c)) {
+                  var x = margin + c * cellSize;
+                  var y = margin + r * cellSize;
+                  svg += '<rect x="'+x+'" y="'+y+'" width="'+cellSize+'" height="'+cellSize+'" fill="#000"/>';
+                }
+              }
             }
-            if(checkCount < 20){ setTimeout(pickElement, 100); return; }
-            if(cvs){ cvs.style.display='block'; if(img) img.style.display='none'; }
+            svg += '</svg>';
+            el.innerHTML = svg;
+          } catch(err){
+            el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ สร้าง QR ไม่สำเร็จ: '+err.message+'</div>';
           }
-          pickElement();
         }
         setTimeout(tryRender, 50);
       })(p, qrId);
