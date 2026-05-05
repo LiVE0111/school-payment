@@ -500,11 +500,29 @@ function openSlip(tid){
   var p = allPayData.find(function(r){ return r.transId===tid; });
   if(!p) return;
   document.getElementById('slipImg').src = p.slipUrl;
-  document.getElementById('slipMeta').innerHTML =
-    '<strong>'+p.studentName+'</strong> ('+p.studentClass+')<br>'
-    +'รายการ: '+p.title+'<br>'
-    +'ผู้โอน: '+(p.payerName||'-')+'<br>'
-    +'ยอด: ฿'+Number(p.amount).toLocaleString();
+
+  // สร้างตารางข้อมูลแบบสวย
+  var rows = [
+    { l:'นักเรียน',  v: p.studentName + ' <span style="color:#FF6B35">(' + p.studentClass + ')</span>' },
+    { l:'รายการ',    v: p.title || '-' },
+    { l:'ปี/เทอม',   v: p.year + ' / ' + p.term },
+    { l:'ยอดเงิน',   v: '<strong style="color:#FF6B35;font-size:1rem">฿' + Number(p.amount).toLocaleString() + '</strong>' },
+    { l:'ผู้โอน',    v: p.payerName || '-' },
+    { l:'Ref. 1',    v: '<code style="background:#FFF3EE;padding:2px 8px;border-radius:6px;font-size:.82rem;color:#E53935;font-weight:600">' + (p.ref1||'-') + '</code>' },
+    { l:'Ref. 2',    v: '<code style="background:#FFF3EE;padding:2px 8px;border-radius:6px;font-size:.82rem;color:#E53935;font-weight:600">' + (p.ref2||'-') + '</code>' },
+    { l:'Trans ID',  v: '<code style="font-size:.74rem;color:#888">' + p.transId + '</code>' }
+  ];
+  var html = '<table style="width:100%;border-collapse:collapse">';
+  rows.forEach(function(r){
+    html += '<tr><td style="padding:5px 0;color:#888;width:90px;font-size:.82rem;vertical-align:top">'+r.l+':</td>'
+         +  '<td style="padding:5px 0;font-size:.85rem">'+r.v+'</td></tr>';
+  });
+  html += '</table>';
+  if(p.reason){
+    html += '<div style="background:#FFEBEE;border-left:3px solid #EF5350;padding:8px 12px;margin-top:10px;border-radius:6px;font-size:.78rem;color:#C62828"><i class="fas fa-info-circle"></i> '+p.reason+'</div>';
+  }
+  document.getElementById('slipMeta').innerHTML = html;
+
   var act = document.getElementById('slipAct');
   if(p.status==='กำลังตรวจสอบ' || p.status==='ชำระไม่สำเร็จ'){
     act.innerHTML = '<button class="bo" style="background:#4CAF50;flex:1;justify-content:center" onclick="doApprove(\''+tid+'\');closeSlip()"><i class="fas fa-check"></i> อนุมัติ</button>'
