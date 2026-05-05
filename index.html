@@ -147,8 +147,12 @@
       box-shadow:0 8px 24px rgba(0,0,0,.12);
       border-left:4px solid #FFB74D;
       animation:slideAnno .5s ease both;
+      position:relative;
     }
+    [data-theme="dark"] .anno-card{background:rgba(45,28,21,.96)}
     @keyframes slideAnno{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes slideOut{to{opacity:0;transform:translateX(-30px) scale(.95);max-height:0;margin:0;padding-top:0;padding-bottom:0;border:none}}
+    .anno-card.closing{animation:slideOut .35s ease forwards;overflow:hidden}
     .anno-icon{
       flex-shrink:0;width:32px;height:32px;
       background:linear-gradient(135deg,#FFB74D,#FF9800);
@@ -157,7 +161,27 @@
       animation:bell 2s ease-in-out infinite;
     }
     @keyframes bell{0%,100%{transform:rotate(0)}10%,30%{transform:rotate(-12deg)}20%,40%{transform:rotate(12deg)}50%{transform:rotate(0)}}
-    .anno-text{flex:1;font-size:.81rem;line-height:1.55;color:#5d4037}
+    .anno-text{flex:1;font-size:.81rem;line-height:1.55;color:#5d4037;min-width:0;cursor:pointer;user-select:none}
+    [data-theme="dark"] .anno-text{color:#e0c8b8}
+    .anno-text.collapsed{
+      max-height:48px;overflow:hidden;position:relative;
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    }
+    .anno-toggle{
+      display:inline-block;color:#FF9800;font-weight:600;font-size:.78rem;margin-top:4px;cursor:pointer;
+      transition:color var(--transition);
+    }
+    .anno-toggle:hover{color:#FF6B35}
+    .anno-close{
+      flex-shrink:0;width:26px;height:26px;border:none;background:transparent;
+      color:#999;cursor:pointer;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.85rem;transition:all var(--transition);
+      align-self:flex-start;
+    }
+    .anno-close:hover{background:#FFE4D6;color:#E53935;transform:rotate(90deg)}
+    [data-theme="dark"] .anno-close{color:#888}
+    [data-theme="dark"] .anno-close:hover{background:#3d2820;color:#EF5350}
 
     /* ─── MAIN ─── */
     .main{margin:-50px auto 0;padding:0 14px 120px;max-width:580px;animation:up .6s .35s ease both;position:relative;z-index:2}
@@ -576,9 +600,17 @@
 
 <!-- ANNOUNCEMENT -->
 <div class="anno" id="annoBox" style="display:none">
-  <div class="anno-card">
+  <div class="anno-card" id="annoCard">
     <div class="anno-icon"><i class="fas fa-bullhorn"></i></div>
-    <div class="anno-text" id="annoText"></div>
+    <div style="flex:1;min-width:0">
+      <div class="anno-text collapsed" id="annoText" onclick="toggleAnno()"></div>
+      <span class="anno-toggle" id="annoToggle" onclick="toggleAnno()" style="display:none">
+        <i class="fas fa-chevron-down"></i> อ่านเพิ่มเติม
+      </span>
+    </div>
+    <button class="anno-close" onclick="closeAnno()" title="ปิด" aria-label="ปิดประกาศ">
+      <i class="fas fa-times"></i>
+    </button>
   </div>
 </div>
 
@@ -709,12 +741,68 @@ function buildQR(qrType, billerId, ref1, ref2, amount){
 /* ════════════════════════════════
    LOAD SETTINGS
 ════════════════════════════════ */
+/* ════════════════════════════════
+   ANNOUNCEMENT - กดปิด/ขยายได้
+════════════════════════════════ */
+function annoHash(text){
+  // hash ง่ายๆ เพื่อตรวจว่าประกาศเปลี่ยนหรือยัง (ถ้าเปลี่ยน → แสดงใหม่)
+  var h = 0;
+  for (var i = 0; i < text.length; i++) {
+    h = ((h << 5) - h) + text.charCodeAt(i);
+    h |= 0;
+  }
+  return String(h);
+}
+
+function showAnnouncement(text){
+  if(!text || !text.trim()) return;
+  // ตรวจว่าผู้ใช้เคยปิดประกาศนี้ไปแล้วหรือยัง
+  try {
+    var dismissed = localStorage.getItem('annoDismissed');
+    if (dismissed === annoHash(text)) return;  // ปิดไปแล้วและประกาศเดิม
+  } catch(e){}
+
+  var el = document.getElementById('annoText');
+  el.innerText = text;
+  document.getElementById('annoBox').style.display = 'block';
+
+  // ตรวจว่าข้อความยาวพอที่ต้องมีปุ่ม "อ่านเพิ่มเติม" หรือไม่
+  setTimeout(function(){
+    if (el.scrollHeight > el.clientHeight + 2) {
+      document.getElementById('annoToggle').style.display = 'inline-block';
+    }
+  }, 100);
+}
+
+function toggleAnno(){
+  var el = document.getElementById('annoText');
+  var btn = document.getElementById('annoToggle');
+  if (el.classList.contains('collapsed')) {
+    el.classList.remove('collapsed');
+    btn.innerHTML = '<i class="fas fa-chevron-up"></i> ย่อข้อความ';
+  } else {
+    el.classList.add('collapsed');
+    btn.innerHTML = '<i class="fas fa-chevron-down"></i> อ่านเพิ่มเติม';
+  }
+}
+
+function closeAnno(){
+  var card = document.getElementById('annoCard');
+  var text = document.getElementById('annoText').innerText;
+  card.classList.add('closing');
+  // จดจำว่าผู้ใช้ปิดประกาศนี้ไปแล้ว
+  try { localStorage.setItem('annoDismissed', annoHash(text)); } catch(e){}
+  setTimeout(function(){ document.getElementById('annoBox').style.display = 'none'; }, 350);
+}
+
+/* ════════════════════════════════
+   LOAD SETTINGS
+════════════════════════════════ */
 api('/settings').then(function(cfg){
   if(cfg.schoolName) document.getElementById('schoolName').innerText = 'ระบบชำระค่าบำรุงการศึกษา ' + cfg.schoolName;
   if(cfg.logoUrl)    document.getElementById('logoImg').src = cfg.logoUrl;
-  if(cfg.announcementOn === 'ON' && cfg.announcement && cfg.announcement.trim()){
-    document.getElementById('annoText').innerText = cfg.announcement;
-    document.getElementById('annoBox').style.display = 'block';
+  if(cfg.announcementOn === 'ON'){
+    showAnnouncement(cfg.announcement || '');
   }
   if(cfg.systemStatus === 'OFF'){
     document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;font-family:Prompt,sans-serif;background:#FFF8F2"><div style="background:#fff;border-radius:24px;padding:40px 28px;text-align:center;max-width:380px;box-shadow:0 8px 32px rgba(255,87,34,.14)"><div style="font-size:3rem;margin-bottom:16px">🔴</div><h2 style="color:#1a1a2e;font-size:1.1rem;font-weight:600;margin-bottom:10px">ระบบปิดชั่วคราว</h2><p style="color:#6b7280;font-size:.88rem;line-height:1.7">'+(cfg.closedMessage||'ระบบปิดชั่วคราว')+'</p></div></div>';
