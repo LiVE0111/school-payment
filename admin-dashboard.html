@@ -116,6 +116,7 @@
   <button class="tb2" onclick="sw('bill',this);onBillTab()"><i class="fas fa-file-invoice"></i> แจ้งหนี้</button>
   <button class="tb2" onclick="sw('std',this);loadStudents()"><i class="fas fa-users"></i> นักเรียน</button>
   <button class="tb2" onclick="sw('cls',this);loadClasses()"><i class="fas fa-chalkboard"></i> ห้องเรียน</button>
+  <button class="tb2" onclick="sw('inq',this);loadInquiries()"><i class="fas fa-comments"></i> คำถาม <span id="inqBadge" style="display:none;background:#EF5350;color:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;margin-left:4px"></span></button>
   <button class="tb2" onclick="sw('cfg',this);loadSettings()"><i class="fas fa-cog"></i> ตั้งค่า</button>
   <button class="tb2" id="tabAdmins" style="display:none" onclick="sw('adm',this);loadAdmins()"><i class="fas fa-user-shield"></i> ผู้ดูแล</button>
 </div></div>
@@ -213,6 +214,26 @@
 </div>
 
 <!-- TAB: SETTINGS -->
+<!-- TAB: INQUIRIES (คำถามจาก chatbot) -->
+<div class="tp" id="tab-inq">
+  <div class="pg">
+    <div class="co cot">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="st" style="margin:0"><i class="fas fa-comments"></i> คำถามจากผู้ปกครอง (ผ่าน Chatbot)</div>
+        <div style="display:flex;gap:8px">
+          <select id="inqFilter" class="fco" style="max-width:160px" onchange="renderInquiries()">
+            <option value="ALL">ทั้งหมด</option>
+            <option value="pending" selected>รอตอบ</option>
+            <option value="resolved">ตอบแล้ว</option>
+          </select>
+          <button class="boo" onclick="loadInquiries()"><i class="fas fa-sync"></i> รีเฟรช</button>
+        </div>
+      </div>
+      <div id="inqList"><div style="text-align:center;color:#aaa;padding:30px">กำลังโหลด...</div></div>
+    </div>
+  </div>
+</div>
+
 <div class="tp" id="tab-cfg">
   <div class="pg">
     <div class="co cot">
@@ -242,6 +263,13 @@
       <div class="st"><i class="fas fa-school"></i> ข้อมูลโรงเรียน</div>
       <div class="fgo"><label>ชื่อโรงเรียน</label><input type="text" id="sSchool" class="fco" placeholder="โรงเรียน..."></div>
       <div class="fgo"><label>URL รูปโลโก้</label><input type="text" id="sLogo" class="fco" placeholder="https://..."></div>
+    </div>
+
+    <div class="co">
+      <div class="st"><i class="fas fa-address-book"></i> ช่องทางติดต่อ (แสดงใน Chatbot)</div>
+      <div class="fgo"><label><i class="fas fa-phone"></i> เบอร์โทร</label><input type="text" id="sPhone" class="fco" placeholder="02-xxx-xxxx"></div>
+      <div class="fgo"><label><i class="fab fa-line"></i> LINE ID</label><input type="text" id="sLine" class="fco" placeholder="@school"></div>
+      <div class="fgo"><label><i class="fas fa-envelope"></i> อีเมล</label><input type="text" id="sEmail" class="fco" placeholder="info@school.ac.th"></div>
     </div>
 
     <div class="co">
@@ -762,6 +790,9 @@ function loadSettings(){
     document.getElementById('sSuffix').value = c.billerSuffix || '00';
     document.getElementById('sSchool').value = c.schoolName || '';
     document.getElementById('sLogo').value = c.logoUrl || '';
+    document.getElementById('sPhone').value = c.contactPhone || '';
+    document.getElementById('sLine').value = c.contactLine || '';
+    document.getElementById('sEmail').value = c.contactEmail || '';
     document.getElementById('annoToggle').checked = c.announcementOn === 'ON';
     document.getElementById('annoLbl').innerText = c.announcementOn === 'ON' ? 'แสดงประกาศ' : 'ปิดอยู่';
     document.getElementById('sAnno').value = c.announcement || '';
@@ -776,6 +807,9 @@ function saveAllSettings(){
     billerSuffix:    document.getElementById('sSuffix').value.trim() || '00',
     schoolName:      document.getElementById('sSchool').value.trim(),
     logoUrl:         document.getElementById('sLogo').value.trim(),
+    contactPhone:    document.getElementById('sPhone').value.trim(),
+    contactLine:     document.getElementById('sLine').value.trim(),
+    contactEmail:    document.getElementById('sEmail').value.trim(),
     announcement:    document.getElementById('sAnno').value.trim(),
     announcementOn:  document.getElementById('annoToggle').checked ? 'ON' : 'OFF'
   };
@@ -800,6 +834,94 @@ function doChangePwd(){
     })
     .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
 }
+
+// ══════════════════════════════
+// INQUIRIES (คำถามจาก chatbot)
+// ══════════════════════════════
+var allInquiries = [];
+
+function loadInquiries(){
+  api('/settings?action=inquiries').then(function(r){
+    allInquiries = r.inquiries || [];
+    var pendingCount = allInquiries.filter(function(i){ return i.status==='pending'; }).length;
+    var badge = document.getElementById('inqBadge');
+    if(pendingCount > 0){
+      badge.style.display = 'inline-block';
+      badge.innerText = pendingCount;
+    } else {
+      badge.style.display = 'none';
+    }
+    renderInquiries();
+  }).catch(function(e){
+    document.getElementById('inqList').innerHTML = '<div style="text-align:center;color:#EF5350;padding:20px">'+e.message+'</div>';
+  });
+}
+
+function renderInquiries(){
+  var filter = document.getElementById('inqFilter').value;
+  var list = filter === 'ALL' ? allInquiries : allInquiries.filter(function(i){ return i.status === filter; });
+  var box = document.getElementById('inqList');
+
+  if(!list.length){
+    box.innerHTML = '<div style="text-align:center;color:#aaa;padding:30px"><i class="fas fa-inbox" style="font-size:2rem;opacity:.4;margin-bottom:8px;display:block"></i>ไม่มีคำถามในหมวดนี้</div>';
+    return;
+  }
+
+  box.innerHTML = list.map(function(i){
+    var d = new Date(i.created_at).toLocaleString('th-TH', { dateStyle:'short', timeStyle:'short' });
+    var statusBadge = i.status === 'resolved'
+      ? '<span class="pl-st pls-d">✅ ตอบแล้ว</span>'
+      : '<span class="pl-st pls-w">⏳ รอตอบ</span>';
+    var langBadge = i.lang === 'en' ? '🇬🇧 EN' : '🇹🇭 TH';
+
+    var contactInfo = i.contact ? '<div style="font-size:.78rem;color:#FF6B35;margin-top:6px"><i class="fas fa-phone"></i> ติดต่อกลับ: <strong>'+i.contact+'</strong></div>' : '';
+    var idCardInfo = i.id_card ? '<div style="font-size:.74rem;color:#888;margin-top:4px"><i class="fas fa-id-card"></i> นักเรียน ID: '+i.id_card+'</div>' : '';
+
+    var actions = i.status === 'pending'
+      ? '<button class="bo" onclick="resolveInq('+i.id+')" style="padding:6px 14px;font-size:.78rem;background:#4CAF50"><i class="fas fa-check"></i> ตอบแล้ว</button>'
+      : '<button class="boo" onclick="reopenInq('+i.id+')" style="padding:6px 14px;font-size:.78rem"><i class="fas fa-undo"></i> เปิดใหม่</button>';
+
+    return '<div style="background:#fff;border:1.5px solid '+(i.status==='pending'?'#FFE0B2':'#E0E0E0')+';border-radius:14px;padding:14px;margin-bottom:12px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap">'
+      + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+statusBadge+'<span style="font-size:.74rem;color:#888">'+langBadge+' • '+d+'</span></div>'
+      + '<div>'+actions+'</div>'
+      + '</div>'
+      + '<div style="background:#FFF8F2;border-radius:10px;padding:10px;font-size:.88rem;line-height:1.5;color:#333;border-left:3px solid #FF6B35">'+escapeHtml(i.question)+'</div>'
+      + idCardInfo + contactInfo
+      + '</div>';
+  }).join('');
+}
+
+function escapeHtml(t){
+  return String(t||'').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+function resolveInq(id){
+  api('/settings?action=resolve', { method:'POST', body:{ id, status:'resolved' } })
+    .then(function(){ toast('success','อัปเดตแล้ว'); loadInquiries(); })
+    .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+function reopenInq(id){
+  api('/settings?action=resolve', { method:'POST', body:{ id, status:'pending' } })
+    .then(function(){ toast('success','เปิดใหม่แล้ว'); loadInquiries(); })
+    .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+// โหลด inquiries ตอนเริ่มต้น เพื่อแสดง badge
+setTimeout(function(){
+  api('/settings?action=inquiries').then(function(r){
+    allInquiries = r.inquiries || [];
+    var pendingCount = allInquiries.filter(function(i){ return i.status==='pending'; }).length;
+    var badge = document.getElementById('inqBadge');
+    if(pendingCount > 0 && badge){
+      badge.style.display = 'inline-block';
+      badge.innerText = pendingCount;
+    }
+  }).catch(function(){});
+}, 1000);
 
 // ══════════════════════════════
 // ADMIN MANAGEMENT (เฉพาะ superadmin)
