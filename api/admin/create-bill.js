@@ -9,10 +9,9 @@ function classToCode(c) {
   return ('000' + String(c).replace(/\D/g, '').slice(0, 3)).slice(-3);
 }
 
-function buildRef2(cls, term, year) {
-  return classToCode(cls)
-       + String(term).replace(/\D/g, '').slice(-1)
-       + String(year).replace(/\D/g, '').slice(-2);
+function buildRef2(cls) {
+  // Ref.2 = รหัสห้อง 3 หลัก (ตาม format กรุงไทย)
+  return classToCode(cls);
 }
 
 module.exports = async function handler(req, res) {
@@ -33,7 +32,7 @@ module.exports = async function handler(req, res) {
     // 1. ดึงนักเรียนที่อยู่ในห้องที่เลือก
     const { data: students, error: errS } = await supabase
       .from('students')
-      .select('id_card,class')
+      .select('id_card,class,student_id')
       .in('class', targetClasses);
 
     if (errS) return fail(res, errS.message, 500);
@@ -45,8 +44,10 @@ module.exports = async function handler(req, res) {
     // 2. เตรียมข้อมูล payments
     const rows = students.map((s, i) => {
       const idc = String(s.id_card).trim();
-      const ref1 = idc.replace(/\D/g, '').substring(0, 20);
-      const ref2 = buildRef2(s.class, term, year);
+      // Ref.1 = รหัสนักเรียน (ตาม format กรุงไทย)
+      // ถ้าไม่มี student_id ให้ fallback ไปเลขบัตร
+      const ref1 = String(s.student_id || idc).replace(/\D/g, '').substring(0, 20);
+      const ref2 = buildRef2(s.class);
       return {
         trans_id: 'T' + now + i,
         id_card: idc,
