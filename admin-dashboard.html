@@ -262,12 +262,38 @@
         <input type="text" id="sQrNotice" class="fco" placeholder="เช่น: ใช้ Krungthai NEXT เท่านั้น (เว้นว่างถ้าไม่ต้องการ)" maxlength="100">
         <div style="font-size:.75rem;color:#888;margin-top:5px"><i class="fas fa-lightbulb"></i> ตัวอย่าง: "ใช้ Krungthai NEXT เท่านั้น" หรือ "สแกนได้ทุกแอปธนาคาร"</div>
       </div>
+
+      <div style="background:#FFF3E0;border:2px solid #FFB74D;border-radius:10px;padding:14px;margin-top:14px">
+        <div style="font-weight:700;color:#E65100;margin-bottom:8px"><i class="fas fa-sync-alt"></i> แปลง Ref.1 / Ref.2 ของบิลเก่าเป็น format กรุงไทย</div>
+        <div style="font-size:.8rem;color:#5D4037;line-height:1.6;margin-bottom:10px">
+          ระบบใหม่กำหนดให้:<br>
+          • <strong>Ref.1</strong> = รหัสนักเรียน (เช่น 10102)<br>
+          • <strong>Ref.2</strong> = รหัสห้อง 3 หลัก (เช่น 101 = ม.1/1)<br>
+          ⚠️ บิลเก่าที่ออกไว้แล้วยังเป็น format เดิม กดปุ่มข้างล่างเพื่ออัปเดต Ref ให้ตรงกับธนาคาร
+        </div>
+        <button onclick="migrateRefs()" id="btnMigrate" style="background:#FF6B35;color:#fff;border:none;border-radius:50px;padding:9px 18px;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer">
+          <i class="fas fa-magic"></i> แปลง Ref ของบิลที่ยังไม่ได้ชำระทั้งหมด
+        </button>
+      </div>
     </div>
 
     <div class="co">
       <div class="st"><i class="fas fa-school"></i> ข้อมูลโรงเรียน</div>
       <div class="fgo"><label>ชื่อโรงเรียน</label><input type="text" id="sSchool" class="fco" placeholder="โรงเรียน..."></div>
       <div class="fgo"><label>URL รูปโลโก้</label><input type="text" id="sLogo" class="fco" placeholder="https://..."></div>
+    </div>
+
+    <div class="co">
+      <div class="st" style="color:#2E7D32"><i class="fas fa-university"></i> ข้อมูลบัญชีธนาคาร (สำคัญ!) — แสดงใต้ QR Code เผื่อสแกนไม่ได้</div>
+      <div style="background:#E8F5E9;border:2px solid #4CAF50;border-radius:10px;padding:10px;margin-bottom:14px;font-size:.82rem;color:#1B5E20">
+        <i class="fas fa-info-circle"></i> <strong>ตั้งค่าตรงนี้แล้ว ผู้ปกครองจะโอนได้แน่นอน!</strong> แม้ QR Code จะใช้ไม่ได้ ผู้ปกครองยังโอนผ่านเลขบัญชีได้ปกติ
+      </div>
+      <div class="fgo"><label><i class="fas fa-landmark"></i> ชื่อธนาคาร</label>
+        <input type="text" id="sBankName" class="fco" placeholder="เช่น กรุงไทย, ไทยพาณิชย์, กสิกรไทย"></div>
+      <div class="fgo"><label><i class="fas fa-hashtag"></i> เลขบัญชี</label>
+        <input type="text" id="sBankAccount" class="fco" placeholder="เช่น 123-4-56789-0"></div>
+      <div class="fgo"><label><i class="fas fa-user"></i> ชื่อบัญชี</label>
+        <input type="text" id="sBankAccountName" class="fco" placeholder="เช่น โรงเรียน...."></div>
     </div>
 
     <div class="co">
@@ -799,9 +825,47 @@ function loadSettings(){
     document.getElementById('sLine').value = c.contactLine || '';
     document.getElementById('sEmail').value = c.contactEmail || '';
     document.getElementById('sQrNotice').value = c.qrNotice || '';
+    document.getElementById('sBankName').value = c.bankName || '';
+    document.getElementById('sBankAccount').value = c.bankAccount || '';
+    document.getElementById('sBankAccountName').value = c.bankAccountName || '';
     document.getElementById('annoToggle').checked = c.announcementOn === 'ON';
     document.getElementById('annoLbl').innerText = c.announcementOn === 'ON' ? 'แสดงประกาศ' : 'ปิดอยู่';
     document.getElementById('sAnno').value = c.announcement || '';
+  });
+}
+
+function migrateRefs(){
+  Swal.fire({
+    title: 'ยืนยันการแปลง Ref?',
+    html: 'จะอัปเดต <strong>Ref.1, Ref.2</strong> ของบิลที่ยังไม่ชำระทั้งหมด<br>ให้ตรงกับ format กรุงไทย:<br><br>• Ref.1 = รหัสนักเรียน<br>• Ref.2 = รหัสห้อง 3 หลัก<br><br><span style="color:#E65100">⚠️ บิลที่ชำระไปแล้วจะไม่ถูกแก้ไข</span>',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#FF6B35',
+    cancelButtonColor: '#9E9E9E',
+    confirmButtonText: '<i class="fas fa-magic"></i> ใช่ แปลงเลย',
+    cancelButtonText: 'ยกเลิก'
+  }).then(function(r){
+    if (!r.isConfirmed) return;
+    var btn = document.getElementById('btnMigrate');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังแปลง...';
+
+    api('/admin/payments?action=migrate-refs', { method:'POST', body:{ status:'รอชำระ' } })
+      .then(function(r){
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> แปลง Ref ของบิลที่ยังไม่ได้ชำระทั้งหมด';
+        Swal.fire({
+          icon: 'success',
+          title: 'สำเร็จ!',
+          text: r.message + ' (อัปเดต ' + r.updated + ' รายการ)',
+          confirmButtonColor: '#4CAF50'
+        });
+      })
+      .catch(function(e){
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> แปลง Ref ของบิลที่ยังไม่ได้ชำระทั้งหมด';
+        Swal.fire('Error', e.message, 'error');
+      });
   });
 }
 
@@ -817,6 +881,9 @@ function saveAllSettings(){
     contactLine:     document.getElementById('sLine').value.trim(),
     contactEmail:    document.getElementById('sEmail').value.trim(),
     qrNotice:        document.getElementById('sQrNotice').value.trim(),
+    bankName:        document.getElementById('sBankName').value.trim(),
+    bankAccount:     document.getElementById('sBankAccount').value.trim(),
+    bankAccountName: document.getElementById('sBankAccountName').value.trim(),
     announcement:    document.getElementById('sAnno').value.trim(),
     announcementOn:  document.getElementById('annoToggle').checked ? 'ON' : 'OFF'
   };
