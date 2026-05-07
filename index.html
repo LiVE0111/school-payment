@@ -704,6 +704,36 @@ function toast(text, icon){
 }
 
 /* ════════════════════════════════
+   HELPERS (global)
+════════════════════════════════ */
+function escapeHTML(s){
+  return String(s||'').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+function copyAccNumber(num, btn) {
+  var fallback = function() {
+    var ta = document.createElement('textarea');
+    ta.value = num;
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(num).catch(fallback);
+  } else fallback();
+  if (btn) {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> คัดลอกแล้ว!';
+    btn.style.background = '#2E7D32';
+    setTimeout(function(){ btn.innerHTML = orig; btn.style.background = '#4CAF50'; }, 1500);
+  }
+  if (typeof toast === 'function') toast('คัดลอกเลขบัญชีแล้ว','check-circle');
+}
+
+/* ════════════════════════════════
    EMV QR Generator
 ════════════════════════════════ */
 function crc16(s){
@@ -801,8 +831,6 @@ function closeAnno(){
 ════════════════════════════════ */
 api('/settings').then(function(cfg){
   window.__siteCfg = cfg;
-  function escapeHTML(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-  window.escapeHTML = escapeHTML;
   if(cfg.schoolName) document.getElementById('schoolName').innerText = 'ระบบชำระค่าบำรุงการศึกษา ' + cfg.schoolName;
   if(cfg.logoUrl)    document.getElementById('logoImg').src = cfg.logoUrl;
   if(cfg.announcementOn === 'ON'){
@@ -917,6 +945,36 @@ function renderResult(data){
             + '</div>';
       }
       qrH += '<div class="qr-hint" style="margin-top:6px"><i class="fas fa-mobile-alt"></i> สแกนได้ทุกแอปธนาคาร</div></div>';
+
+      // ─── BANK TRANSFER FALLBACK (ถ้า admin ตั้งบัญชีไว้) ───
+      var cfg = window.__siteCfg || {};
+      if (cfg.bankAccount && cfg.bankAccount.trim()) {
+        var accNo = cfg.bankAccount.replace(/[^0-9-]/g, '');
+        qrH += '<div style="margin-top:14px;background:linear-gradient(135deg,#E8F5E9,#F1F8E9);border:2.5px solid #4CAF50;border-radius:14px;padding:14px;position:relative;overflow:hidden">'
+            + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+            +   '<div style="width:36px;height:36px;background:#4CAF50;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem"><i class="fas fa-university"></i></div>'
+            +   '<div style="flex:1">'
+            +     '<div style="font-weight:700;color:#1B5E20;font-size:.9rem">📌 ช่องทางสำรอง: โอนเข้าบัญชีโดยตรง</div>'
+            +     '<div style="font-size:.72rem;color:#558B2F">ใช้ได้กับทุกแอปธนาคาร 100%</div>'
+            +   '</div>'
+            + '</div>'
+            + '<div style="background:#fff;border-radius:10px;padding:10px;font-size:.85rem;line-height:1.7">';
+        if (cfg.bankName) {
+          qrH += '<div><span style="color:#666">ธนาคาร:</span> <strong>' + escapeHTML(cfg.bankName) + '</strong></div>';
+        }
+        qrH += '<div style="display:flex;align-items:center;gap:8px;margin:6px 0">'
+            +    '<span style="color:#666">เลขบัญชี:</span>'
+            +    '<strong id="acc-' + idx + '" style="color:#2E7D32;font-size:1.05rem;letter-spacing:.5px">' + escapeHTML(accNo) + '</strong>'
+            +    '<button onclick="copyAccNumber(\'' + accNo.replace(/-/g,'') + '\', this)" style="margin-left:auto;background:#4CAF50;color:#fff;border:none;border-radius:50px;padding:5px 12px;font-size:.74rem;font-weight:600;cursor:pointer;font-family:inherit"><i class="fas fa-copy"></i> คัดลอก</button>'
+            + '</div>';
+        if (cfg.bankAccountName) {
+          qrH += '<div><span style="color:#666">ชื่อบัญชี:</span> <strong>' + escapeHTML(cfg.bankAccountName) + '</strong></div>';
+        }
+        qrH += '<div style="background:#FFF3E0;border-left:3px solid #FF9800;padding:7px 10px;margin-top:8px;border-radius:6px;font-size:.76rem;color:#E65100">'
+            +    '<i class="fas fa-info-circle"></i> <strong>โอนยอด ฿' + Number(p.amount).toLocaleString('th-TH', {minimumFractionDigits:2}) + '</strong> แล้วใส่ "<strong>' + (p.ref1 || p.transId) + '</strong>" ในบันทึกช่วยจำ'
+            + '</div>';
+        qrH += '</div></div>';
+      }
     }
     var upH = showUp ? '<button class="btn-up" onclick="openModal(\''+p.transId+'\')"><i class="fas fa-cloud-upload-alt"></i> แจ้งโอนเงิน / อัปโหลดสลิป</button>' : '';
 
