@@ -19,7 +19,8 @@ const KEY_MAP = {
   announcementOn:  'ANNOUNCEMENT_ON',
   contactPhone:    'CONTACT_PHONE',
   contactLine:     'CONTACT_LINE',
-  contactEmail:    'CONTACT_EMAIL'
+  contactEmail:    'CONTACT_EMAIL',
+  qrNotice:        'QR_NOTICE'
 };
 
 module.exports = async function handler(req, res) {
@@ -103,7 +104,8 @@ module.exports = async function handler(req, res) {
         announcementOn:  map.ANNOUNCEMENT_ON  || 'OFF',
         contactPhone:    map.CONTACT_PHONE    || '',
         contactLine:     map.CONTACT_LINE     || '',
-        contactEmail:    map.CONTACT_EMAIL    || ''
+        contactEmail:    map.CONTACT_EMAIL    || '',
+        qrNotice:        map.QR_NOTICE        || ''
       });
     } catch (e) {
       return fail(res, e.message, 500);
