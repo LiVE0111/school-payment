@@ -257,6 +257,11 @@
         <input type="text" id="sSuffix" class="fco" placeholder="00" maxlength="2" inputmode="numeric">
         <div style="font-size:.75rem;color:#FF6B35;margin-top:5px"><i class="fas fa-info-circle"></i> ถ้าสแกน QR แล้วขึ้น "ไม่พบบัญชีหน่วยงาน" ให้ลองเปลี่ยน Suffix</div>
       </div>
+      <div class="fgo">
+        <label><i class="fas fa-exclamation-triangle"></i> ข้อความเตือนใต้ QR (ปรับแต่งได้)</label>
+        <input type="text" id="sQrNotice" class="fco" placeholder="เช่น: ใช้ Krungthai NEXT เท่านั้น (เว้นว่างถ้าไม่ต้องการ)" maxlength="100">
+        <div style="font-size:.75rem;color:#888;margin-top:5px"><i class="fas fa-lightbulb"></i> ตัวอย่าง: "ใช้ Krungthai NEXT เท่านั้น" หรือ "สแกนได้ทุกแอปธนาคาร"</div>
+      </div>
     </div>
 
     <div class="co">
@@ -793,6 +798,7 @@ function loadSettings(){
     document.getElementById('sPhone').value = c.contactPhone || '';
     document.getElementById('sLine').value = c.contactLine || '';
     document.getElementById('sEmail').value = c.contactEmail || '';
+    document.getElementById('sQrNotice').value = c.qrNotice || '';
     document.getElementById('annoToggle').checked = c.announcementOn === 'ON';
     document.getElementById('annoLbl').innerText = c.announcementOn === 'ON' ? 'แสดงประกาศ' : 'ปิดอยู่';
     document.getElementById('sAnno').value = c.announcement || '';
@@ -810,6 +816,7 @@ function saveAllSettings(){
     contactPhone:    document.getElementById('sPhone').value.trim(),
     contactLine:     document.getElementById('sLine').value.trim(),
     contactEmail:    document.getElementById('sEmail').value.trim(),
+    qrNotice:        document.getElementById('sQrNotice').value.trim(),
     announcement:    document.getElementById('sAnno').value.trim(),
     announcementOn:  document.getElementById('annoToggle').checked ? 'ON' : 'OFF'
   };
