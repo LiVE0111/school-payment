@@ -734,7 +734,11 @@ function copyAccNumber(num, btn) {
 }
 
 /* ════════════════════════════════
-   EMV QR Generator
+   QR Generator
+   - PROMPTPAY: EMV QR (ใช้กับ PromptPay เลขบัตร 13 หลัก)
+   - BOT Format: สำหรับ Krungthai Bill Payment ที่สมัครแบบ BOT
+     รูปแบบ: |BillerID Ref1 Ref2 Amount(สตางค์)
+     ตัวอย่าง: |099400010422700 1100200300401 101169 250000
 ════════════════════════════════ */
 function crc16(s){
   var c=0xFFFF;
@@ -749,24 +753,36 @@ function tlv(t,v){ return t+('00'+v.length).slice(-2)+v; }
 function buildQR(qrType, billerId, ref1, ref2, amount){
   var id = String(billerId||'').replace(/\D/g,'');
   var amt = parseFloat(amount);
-  var payload = tlv('00','01') + tlv('01','12');
+
+  // ─── PROMPTPAY ใช้ EMV QR ───
   if (qrType === 'PROMPTPAY') {
     if(id.length !== 13) return null;
+    var payload = tlv('00','01') + tlv('01','12');
     var mInfo = tlv('00','A000000677010111') + tlv('02', id);
     payload += tlv('29', mInfo);
-  } else {
-    if(id.length !== 15) return null;
-    var r1 = String(ref1||'').replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,20);
-    var r2 = String(ref2||'').replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,20);
-    var mInfo = tlv('00','A000000677010112') + tlv('01', id);
-    if(r1.length > 0) mInfo += tlv('02', r1);
-    if(r2.length > 0) mInfo += tlv('03', r2);
-    payload += tlv('30', mInfo);
+    payload += tlv('53','764');
+    if (amt > 0) payload += tlv('54', amt.toFixed(2));
+    payload += tlv('58','TH') + '6304';
+    return payload + crc16(payload);
   }
-  payload += tlv('53','764');
-  if (amt > 0) payload += tlv('54', amt.toFixed(2));
-  payload += tlv('58','TH') + '6304';
-  return payload + crc16(payload);
+
+  // ─── KRUNGTHAI BILL PAYMENT (BOT FORMAT) ───
+  // รูปแบบ string ที่ธนาคารกรุงไทยใช้สำหรับ Bill Payment แบบ BOT:
+  //   |BillerID Ref1 Ref2 Amount(สตางค์)
+  // ตัวอย่างจริงจากใบ Pay-In Slip:
+  //   |0994000104227 00 10102 101 250000  (มี space คั่น เพราะแยก Tax+Suffix+Ref1+Ref2+ยอด)
+  // หรือรวม BillerID 15 หลัก:
+  //   |099400010422700 1100200300401 101169 250000
+  if(id.length !== 15) return null;
+
+  var r1 = String(ref1||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+  var r2 = String(ref2||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+  var amtSatang = amt > 0 ? Math.round(amt * 100).toString() : '0';
+
+  // BOT Format: |BillerID Ref1 Ref2 Amount(satang)
+  // ใช้ "|" ขึ้นต้น และคั่นด้วยช่องว่าง
+  var botPayload = '|' + id + ' ' + r1 + ' ' + r2 + ' ' + amtSatang;
+  return botPayload;
 }
 
 /* ════════════════════════════════
