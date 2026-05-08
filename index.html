@@ -920,9 +920,9 @@ function renderResult(data){
 
   list.innerHTML = '';
   data.payments.forEach(function(p, idx){
-    var bar='bw', pil='pw', ico='⏳', txt='รอชำระ', showQR=false, showUp=false, note='';
+    var bar='bw', pil='pw', ico='⏳', txt='รอชำระ', showQR=false, showUp=false, showReceipt=false, note='';
     if(p.status==='กำลังตรวจสอบ'){ bar='bc';pil='pck';ico='🔍';txt='รอตรวจสอบ'; }
-    else if(p.status==='ชำระแล้ว'){ bar='bd';pil='pdn';ico='✅';txt='ชำระแล้ว'; }
+    else if(p.status==='ชำระแล้ว'){ bar='bd';pil='pdn';ico='✅';txt='ชำระแล้ว'; showReceipt=true; }
     else if(p.status==='ชำระไม่สำเร็จ'){ bar='bf';pil='pfl';ico='❌';txt='ไม่ผ่าน';showQR=showUp=true;
       note='<div class="rn"><i class="fas fa-exclamation-circle" style="flex-shrink:0;margin-top:2px"></i><span>'+(p.rejectReason||'')+'</span></div>'; }
     else{ showQR=showUp=true; }
@@ -995,13 +995,14 @@ function renderResult(data){
       }
     }
     var upH = showUp ? '<button class="btn-up" onclick="openModal(\''+p.transId+'\')"><i class="fas fa-cloud-upload-alt"></i> แจ้งโอนเงิน / อัปโหลดสลิป</button>' : '';
+    var receiptH = showReceipt ? '<button class="btn-up" style="background:linear-gradient(135deg,#4CAF50,#2E7D32)" onclick="viewReceipt(\''+p.transId+'\')"><i class="fas fa-receipt"></i> ดู / พิมพ์ใบเสร็จ</button>' : '';
 
     card.innerHTML = '<div class="pbar '+bar+'"></div><div class="pb">'
       + '<div class="pt">'
       + '<div style="flex:1;min-width:0"><div class="ptit">'+p.title+'</div><div class="pmeta"><i class="fas fa-calendar-alt"></i> ปี '+p.year+' • เทอม '+p.term+'</div>'+docH+'</div>'
       + '<div style="text-align:right;flex-shrink:0"><div class="pamt">฿'+Number(p.amount).toLocaleString()+'</div>'
       + '<span class="pill '+pil+'">'+ico+' '+txt+'</span></div>'
-      + '</div>'+note+qrH+upH+'</div>';
+      + '</div>'+note+qrH+upH+receiptH+'</div>';
     list.appendChild(card);
 
     if(showQR){
@@ -1106,6 +1107,126 @@ function doUpload(){
       Swal.fire({icon:'error',title:'Error',text:err.message||'อัปโหลดไม่สำเร็จ',confirmButtonColor:'#FF6B35'});
     });
 }
+
+/* ════════════════════════════════
+   CREDIT (ผู้พัฒนา)
+════════════════════════════════ */
+function showCredit(){
+  Swal.fire({
+    title: '<i class="fas fa-code" style="color:#FF6B35"></i> เกี่ยวกับระบบนี้',
+    html: '<div style="text-align:center;line-height:1.8">'
+        + '<div style="font-size:1.3rem;font-weight:700;color:#333;margin-bottom:6px">Peerapan Khampan</div>'
+        + '<div style="color:#666;font-size:.9rem">ครูอัตราจ้าง</div>'
+        + '<div style="margin:14px 0;padding:12px;background:#FFF3E0;border-radius:10px;color:#E65100;font-size:.85rem">'
+        + '<i class="fas fa-heart" style="color:#E91E63"></i> พัฒนาระบบรับชำระเงินออนไลน์<br>เพื่อโรงเรียน'
+        + '</div>'
+        + '<div style="font-size:.78rem;color:#999;margin-top:10px">ขอขอบคุณที่ใช้งาน 🙏</div>'
+        + '</div>',
+    showConfirmButton: true,
+    confirmButtonText: 'ปิด',
+    confirmButtonColor: '#FF6B35',
+    width: 360
+  });
+}
+
+/* ════════════════════════════════
+   ใบเสร็จ (e-Receipt) — ดูที่หน้าผู้ปกครอง
+════════════════════════════════ */
+function viewReceipt(transId){
+  // ใช้ student/search หา payment + แสดงใบเสร็จ HTML
+  api('/student/search?idCard=' + encodeURIComponent(window.__currentIdCard||''))
+    .then(function(r){
+      var p = (r.payments || []).find(function(x){ return x.transId === transId; });
+      if (!p || p.status !== 'ชำระแล้ว') {
+        Swal.fire('ไม่พบข้อมูล','รายการนี้ยังไม่ได้ชำระ','warning');
+        return;
+      }
+      renderReceiptModal(p, r.student);
+    });
+}
+
+function renderReceiptModal(p, s){
+  var cfg = window.__siteCfg || {};
+  var dt = p.timestamp ? new Date(p.timestamp) : new Date();
+  var dtTH = dt.toLocaleDateString('th-TH', { year:'numeric', month:'long', day:'numeric' });
+  var receiptNo = p.receiptNo || '(ยังไม่ได้ออกใบเสร็จ)';
+
+  var html = '<div id="receiptArea" style="background:#fff;color:#000;padding:24px;text-align:left;font-family:\'Sarabun\',sans-serif">'
+    + '<div style="text-align:center;border-bottom:2px solid #333;padding-bottom:14px;margin-bottom:14px">'
+    + (cfg.logoUrl ? '<img src="'+cfg.logoUrl+'" style="height:60px;margin-bottom:8px">' : '')
+    + '<div style="font-size:1.3rem;font-weight:700">'+(cfg.schoolName||'โรงเรียน')+'</div>'
+    + (cfg.taxId ? '<div style="font-size:.85rem;color:#666">เลขประจำตัวผู้เสียภาษี: '+cfg.taxId+'</div>' : '')
+    + '<div style="font-size:1.1rem;font-weight:700;margin-top:8px;color:#FF6B35">ใบเสร็จรับเงิน / RECEIPT</div>'
+    + '</div>'
+
+    + '<div style="display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:14px">'
+    + '<div><strong>เลขที่ใบเสร็จ:</strong> '+receiptNo+'</div>'
+    + '<div><strong>วันที่:</strong> '+dtTH+'</div>'
+    + '</div>'
+
+    + '<div style="background:#F5F5F5;padding:12px;border-radius:8px;margin-bottom:14px;font-size:.9rem">'
+    + '<div><strong>ชื่อ:</strong> '+(s.name||'-')+'</div>'
+    + '<div><strong>ชั้น:</strong> '+(s.class||'-')+' &nbsp; <strong>รหัสนักเรียน:</strong> '+(s.studentId||'-')+'</div>'
+    + '</div>'
+
+    + '<table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-bottom:14px">'
+    + '<thead><tr style="background:#FF6B35;color:#fff">'
+    + '<th style="padding:8px;text-align:left">รายการ</th>'
+    + '<th style="padding:8px;text-align:right;width:100px">จำนวน</th>'
+    + '</tr></thead>'
+    + '<tbody><tr>'
+    + '<td style="padding:10px;border-bottom:1px solid #ddd">'+p.title+' (ปี '+p.year+' เทอม '+p.term+')</td>'
+    + '<td style="padding:10px;border-bottom:1px solid #ddd;text-align:right">฿'+Number(p.amount).toLocaleString('th-TH',{minimumFractionDigits:2})+'</td>'
+    + '</tr></tbody>'
+    + '<tfoot><tr style="background:#FFF3E0">'
+    + '<td style="padding:10px;font-weight:700;text-align:right">รวมทั้งสิ้น</td>'
+    + '<td style="padding:10px;font-weight:700;text-align:right;color:#E65100">฿'+Number(p.amount).toLocaleString('th-TH',{minimumFractionDigits:2})+'</td>'
+    + '</tr></tfoot>'
+    + '</table>'
+
+    + '<div style="font-size:.85rem;color:#666;margin-top:14px">'
+    + '<div><strong>วิธีชำระ:</strong> '+(p.payerName||'-')+'</div>'
+    + (p.ref1 ? '<div><strong>Ref.1:</strong> '+p.ref1+'</div>' : '')
+    + (p.ref2 ? '<div><strong>Ref.2:</strong> '+p.ref2+'</div>' : '')
+    + '</div>'
+
+    + '<div style="text-align:center;margin-top:24px;font-size:.78rem;color:#999;border-top:1px dashed #ccc;padding-top:14px">'
+    + 'เอกสารนี้พิมพ์จากระบบคอมพิวเตอร์ ไม่ต้องลงนาม<br>'
+    + 'This receipt is computer generated.'
+    + '</div>'
+    + '</div>';
+
+  Swal.fire({
+    html: html,
+    width: 600,
+    showConfirmButton: true,
+    confirmButtonText: '<i class="fas fa-print"></i> พิมพ์ / บันทึกเป็น PDF',
+    confirmButtonColor: '#FF6B35',
+    showCancelButton: true,
+    cancelButtonText: 'ปิด',
+    cancelButtonColor: '#9E9E9E',
+    customClass: { popup: 'receipt-popup' }
+  }).then(function(r){
+    if (r.isConfirmed) printReceipt();
+  });
+}
+
+function printReceipt(){
+  var area = document.getElementById('receiptArea');
+  if (!area) return;
+  var w = window.open('', '_blank', 'width=800,height=600');
+  w.document.write('<!doctype html><html><head><title>ใบเสร็จ</title>'
+    + '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">'
+    + '<style>body{font-family:Sarabun,sans-serif;margin:0;padding:20px;background:#fff}@media print{body{padding:0}}</style>'
+    + '</head><body>'+area.outerHTML+'</body></html>');
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 500);
+}
 </script>
+
+<!-- ปุ่มเครดิตเล็ก ๆ มุมล่างขวา -->
+<button onclick="showCredit()" title="เกี่ยวกับ" style="position:fixed;bottom:14px;left:14px;width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,107,53,.15);color:#FF6B35;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;z-index:100;transition:all .2s ease;backdrop-filter:blur(8px)" onmouseover="this.style.background='rgba(255,107,53,.3)';this.style.transform='scale(1.1)'" onmouseout="this.style.background='rgba(255,107,53,.15)';this.style.transform='scale(1)'">
+  <i class="fas fa-info"></i>
+</button>
 </body>
 </html>
