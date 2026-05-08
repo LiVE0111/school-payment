@@ -20,7 +20,12 @@ const KEY_MAP = {
   contactPhone:    'CONTACT_PHONE',
   contactLine:     'CONTACT_LINE',
   contactEmail:    'CONTACT_EMAIL',
-  qrNotice:        'QR_NOTICE'
+  qrNotice:        'QR_NOTICE',
+  bankName:        'BANK_NAME',
+  bankAccount:     'BANK_ACCOUNT',
+  bankAccountName: 'BANK_ACCOUNT_NAME',
+  ref1Format:      'REF1_FORMAT',     // STUDENT_ID / ID_CARD
+  ref2Format:      'REF2_FORMAT'      // CLASS_CODE / CLASS_TERM_YEAR
 };
 
 module.exports = async function handler(req, res) {
@@ -105,7 +110,12 @@ module.exports = async function handler(req, res) {
         contactPhone:    map.CONTACT_PHONE    || '',
         contactLine:     map.CONTACT_LINE     || '',
         contactEmail:    map.CONTACT_EMAIL    || '',
-        qrNotice:        map.QR_NOTICE        || ''
+        qrNotice:        map.QR_NOTICE        || '',
+        bankName:        map.BANK_NAME        || '',
+        bankAccount:     map.BANK_ACCOUNT     || '',
+        bankAccountName: map.BANK_ACCOUNT_NAME || '',
+        ref1Format:      map.REF1_FORMAT      || 'STUDENT_ID',
+        ref2Format:      map.REF2_FORMAT      || 'CLASS_CODE'
       });
     } catch (e) {
       return fail(res, e.message, 500);
