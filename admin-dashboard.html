@@ -1012,6 +1012,7 @@ function doDelStd(id){
 }
 
 function openImport(){ document.getElementById('xlFile').value=''; document.getElementById('impModal').classList.add('open'); }
+
 function doImport(){
   var f = document.getElementById('xlFile').files[0];
   if(!f) return toast('warning','เลือกไฟล์ก่อน');
@@ -1023,16 +1024,110 @@ function doImport(){
       var rows = XLSX.utils.sheet_to_json(ws);
       if(!rows.length) return toast('warning','ไฟล์ว่าง');
 
-      loading(true, 'กำลังนำเข้า...');
-      api('/admin/students', { method:'POST', body: { list: rows } })
-        .then(function(r){
-          loading(false);
-          closeModal('impModal');
-          Swal.fire('สำเร็จ!','นำเข้า '+r.count+' รายการ','success');
-          loadStudents();
-        })
-        .catch(function(err){ loading(false); Swal.fire('Error', err.message, 'error'); });
-    } catch(err){ Swal.fire('Error','อ่านไฟล์ไม่สำเร็จ: '+err.message,'error'); }
+      // ⭐ ตรวจสอบ duplicate ก่อนส่ง
+      var seenCards = {};
+      var duplicates = [];
+      var invalidRows = [];
+
+      rows.forEach(function(r, idx){
+        // หา id_card จาก field ต่าง ๆ
+        var idCard = String(
+          r.idCard || r.ID_Card || r['เลขบัตรประชาชน'] || r['เลขบัตร'] || ''
+        ).trim().replace(/\D/g, '');
+
+        var name = String(
+          r.name || r.Name || r['ชื่อ-สกุล'] || r['ชื่อ'] || ''
+        ).trim();
+
+        if (!idCard || idCard.length !== 13) {
+          invalidRows.push({ row: idx + 2, reason: 'เลขบัตรไม่ครบ 13 หลัก' });
+        } else if (!name) {
+          invalidRows.push({ row: idx + 2, reason: 'ไม่มีชื่อ' });
+        } else if (seenCards[idCard]) {
+          duplicates.push({ row: idx + 2, idCard: idCard, name: name });
+        } else {
+          seenCards[idCard] = true;
+        }
+      });
+
+      // แสดง preview ผลตรวจสอบ
+      var totalValid = Object.keys(seenCards).length;
+      var html = '<div style="text-align:left;font-size:.9rem;line-height:1.7">';
+      html += '<div><strong>📊 สรุปข้อมูล:</strong></div>';
+      html += '<div>• ทั้งหมด: <strong>' + rows.length + '</strong> แถว</div>';
+      html += '<div style="color:#2E7D32">✅ ใช้ได้: <strong>' + totalValid + '</strong> แถว</div>';
+
+      if (duplicates.length > 0) {
+        html += '<div style="color:#FF6B35;margin-top:8px">⚠️ ซ้ำ: <strong>' + duplicates.length + '</strong> แถว (จะใช้ข้อมูลล่าสุด)</div>';
+        html += '<div style="font-size:.8rem;color:#666;margin-top:4px;max-height:120px;overflow-y:auto">';
+        duplicates.slice(0, 10).forEach(function(d){
+          html += '<div>• แถวที่ ' + d.row + ': ' + d.name + ' (' + d.idCard + ')</div>';
+        });
+        if (duplicates.length > 10) html += '<div>... และอีก ' + (duplicates.length - 10) + ' แถว</div>';
+        html += '</div>';
+      }
+
+      if (invalidRows.length > 0) {
+        html += '<div style="color:#C62828;margin-top:8px">❌ ข้าม: <strong>' + invalidRows.length + '</strong> แถว</div>';
+        html += '<div style="font-size:.8rem;color:#666;margin-top:4px;max-height:120px;overflow-y:auto">';
+        invalidRows.slice(0, 10).forEach(function(d){
+          html += '<div>• แถวที่ ' + d.row + ': ' + d.reason + '</div>';
+        });
+        if (invalidRows.length > 10) html += '<div>... และอีก ' + (invalidRows.length - 10) + ' แถว</div>';
+        html += '</div>';
+      }
+
+      html += '</div>';
+
+      if (totalValid === 0) {
+        Swal.fire({
+          icon: 'error',
+          title: 'ไม่มีข้อมูลที่ใช้ได้',
+          html: html,
+          confirmButtonColor: '#FF6B35'
+        });
+        return;
+      }
+
+      Swal.fire({
+        title: 'ยืนยันการนำเข้า?',
+        html: html,
+        icon: duplicates.length > 0 || invalidRows.length > 0 ? 'warning' : 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#4CAF50',
+        cancelButtonColor: '#9E9E9E',
+        confirmButtonText: '<i class="fas fa-upload"></i> ยืนยัน นำเข้า ' + totalValid + ' แถว',
+        cancelButtonText: 'ยกเลิก',
+        width: 500
+      }).then(function(r){
+        if (!r.isConfirmed) return;
+
+        loading(true, 'กำลังนำเข้า...');
+        api('/admin/students', { method:'POST', body: { list: rows } })
+          .then(function(res){
+            loading(false);
+            closeModal('impModal');
+            Swal.fire({
+              icon: 'success',
+              title: 'นำเข้าสำเร็จ!',
+              html: res.message || ('นำเข้า ' + res.count + ' รายการ'),
+              confirmButtonColor: '#4CAF50'
+            });
+            loadStudents();
+          })
+          .catch(function(err){
+            loading(false);
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: err.message,
+              confirmButtonColor: '#FF6B35'
+            });
+          });
+      });
+    } catch(err){
+      Swal.fire('Error','อ่านไฟล์ไม่สำเร็จ: '+err.message,'error');
+    }
   };
   rdr.readAsArrayBuffer(f);
 }
