@@ -262,43 +262,6 @@
         <input type="text" id="sQrNotice" class="fco" placeholder="เช่น: ใช้ Krungthai NEXT เท่านั้น (เว้นว่างถ้าไม่ต้องการ)" maxlength="100">
         <div style="font-size:.75rem;color:#888;margin-top:5px"><i class="fas fa-lightbulb"></i> ตัวอย่าง: "ใช้ Krungthai NEXT เท่านั้น" หรือ "สแกนได้ทุกแอปธนาคาร"</div>
       </div>
-
-      <div style="background:#E8F5E9;border:2px solid #4CAF50;border-radius:10px;padding:14px;margin-top:14px">
-        <div style="font-weight:700;color:#1B5E20;margin-bottom:10px"><i class="fas fa-cog"></i> รูปแบบ Ref.1 และ Ref.2 (สำคัญมาก! ต้องตรงกับที่ธนาคารลงทะเบียน)</div>
-
-        <div class="fgo" style="margin-bottom:12px">
-          <label style="font-weight:600">Ref.1 ใช้รูปแบบไหน?</label>
-          <select id="sRef1Fmt" class="fco">
-            <option value="STUDENT_ID">รหัสนักเรียน (เช่น 10102) — ตามใบ Pay-In ของกรุงไทย</option>
-            <option value="ID_CARD">เลขบัตรประชาชน 13 หลัก (เช่น 1100200300401)</option>
-          </select>
-        </div>
-
-        <div class="fgo" style="margin-bottom:0">
-          <label style="font-weight:600">Ref.2 ใช้รูปแบบไหน?</label>
-          <select id="sRef2Fmt" class="fco">
-            <option value="CLASS_CODE">รหัสห้อง 3 หลัก (เช่น 101 = ม.1/1) — ตามกรุงไทย</option>
-            <option value="CLASS_TERM_YEAR">รหัสห้อง+เทอม+ปี (เช่น 101169 = ม.1/1 เทอม 1 ปี 69)</option>
-          </select>
-        </div>
-
-        <div style="font-size:.78rem;color:#2E7D32;margin-top:10px;line-height:1.55">
-          <i class="fas fa-info-circle"></i> <strong>วิธีตรวจ:</strong> ดูใบ Pay-In Slip ของโรงเรียน → บาร์โค้ดด้านล่างจะมีรูปแบบ
-          <code style="background:#fff;padding:2px 6px;border-radius:4px">|TaxID Suffix Ref1 Ref2 ยอด</code>
-          ค่า Ref1, Ref2 ที่กรุงไทยพิมพ์ คือสิ่งที่ต้องเลือกตรงนี้
-        </div>
-      </div>
-
-      <div style="background:#FFF3E0;border:2px solid #FFB74D;border-radius:10px;padding:14px;margin-top:14px">
-        <div style="font-weight:700;color:#E65100;margin-bottom:8px"><i class="fas fa-sync-alt"></i> แปลง Ref ของบิลเก่าให้ตรงรูปแบบที่เลือก</div>
-        <div style="font-size:.8rem;color:#5D4037;line-height:1.6;margin-bottom:10px">
-          ถ้าเปลี่ยน format ด้านบน → กดปุ่มนี้เพื่ออัปเดตบิลเก่าที่ออกไว้แล้วให้ตรงรูปแบบใหม่<br>
-          ⚠️ บิลที่ชำระแล้วจะไม่ถูกแก้ไข
-        </div>
-        <button onclick="migrateRefs()" id="btnMigrate" style="background:#FF6B35;color:#fff;border:none;border-radius:50px;padding:9px 18px;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer">
-          <i class="fas fa-magic"></i> แปลง Ref ของบิลที่ยังไม่ได้ชำระทั้งหมด
-        </button>
-      </div>
     </div>
 
     <div class="co">
@@ -852,46 +815,9 @@ function loadSettings(){
     document.getElementById('sBankName').value = c.bankName || '';
     document.getElementById('sBankAccount').value = c.bankAccount || '';
     document.getElementById('sBankAccountName').value = c.bankAccountName || '';
-    document.getElementById('sRef1Fmt').value = c.ref1Format || 'STUDENT_ID';
-    document.getElementById('sRef2Fmt').value = c.ref2Format || 'CLASS_CODE';
     document.getElementById('annoToggle').checked = c.announcementOn === 'ON';
     document.getElementById('annoLbl').innerText = c.announcementOn === 'ON' ? 'แสดงประกาศ' : 'ปิดอยู่';
     document.getElementById('sAnno').value = c.announcement || '';
-  });
-}
-
-function migrateRefs(){
-  Swal.fire({
-    title: 'ยืนยันการแปลง Ref?',
-    html: 'จะอัปเดต <strong>Ref.1, Ref.2</strong> ของบิลที่ยังไม่ชำระทั้งหมด<br>ให้ตรงกับ format กรุงไทย:<br><br>• Ref.1 = รหัสนักเรียน<br>• Ref.2 = รหัสห้อง 3 หลัก<br><br><span style="color:#E65100">⚠️ บิลที่ชำระไปแล้วจะไม่ถูกแก้ไข</span>',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: '#FF6B35',
-    cancelButtonColor: '#9E9E9E',
-    confirmButtonText: '<i class="fas fa-magic"></i> ใช่ แปลงเลย',
-    cancelButtonText: 'ยกเลิก'
-  }).then(function(r){
-    if (!r.isConfirmed) return;
-    var btn = document.getElementById('btnMigrate');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังแปลง...';
-
-    api('/admin/payments?action=migrate-refs', { method:'POST', body:{ status:'รอชำระ' } })
-      .then(function(r){
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-magic"></i> แปลง Ref ของบิลที่ยังไม่ได้ชำระทั้งหมด';
-        Swal.fire({
-          icon: 'success',
-          title: 'สำเร็จ!',
-          text: r.message + ' (อัปเดต ' + r.updated + ' รายการ)',
-          confirmButtonColor: '#4CAF50'
-        });
-      })
-      .catch(function(e){
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-magic"></i> แปลง Ref ของบิลที่ยังไม่ได้ชำระทั้งหมด';
-        Swal.fire('Error', e.message, 'error');
-      });
   });
 }
 
@@ -910,8 +836,6 @@ function saveAllSettings(){
     bankName:        document.getElementById('sBankName').value.trim(),
     bankAccount:     document.getElementById('sBankAccount').value.trim(),
     bankAccountName: document.getElementById('sBankAccountName').value.trim(),
-    ref1Format:      document.getElementById('sRef1Fmt').value,
-    ref2Format:      document.getElementById('sRef2Fmt').value,
     announcement:    document.getElementById('sAnno').value.trim(),
     announcementOn:  document.getElementById('annoToggle').checked ? 'ON' : 'OFF'
   };
