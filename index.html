@@ -888,6 +888,8 @@ function doSearch(){
 ════════════════════════════════ */
 function renderResult(data){
   var s = data.student;
+  window.__currentPayments = data.payments || [];
+  window.__currentIdCard = (s && s.idCard) || (document.getElementById('idCardInput')||{}).value || '';
   document.getElementById('pName').innerText   = s.name;
   document.getElementById('pCls').innerText    = s.class;
   document.querySelector('#pSid span').innerText = 'รหัสนักเรียน: ' + s.studentId;
