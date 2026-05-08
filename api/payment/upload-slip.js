@@ -1,8 +1,4 @@
 // api/payment/upload-slip.js - บันทึกสลิป + เปลี่ยนสถานะเป็น "กำลังตรวจสอบ"
-//
-// Frontend จะอัปโหลดไฟล์ไปที่ Supabase Storage ก่อน (ผ่าน anon key)
-// แล้วส่ง URL กลับมาให้ API นี้อัปเดตสถานะ
-//
 const supabase = require('../../lib/supabase');
 const { ok, fail, handleOptions } = require('../../lib/auth');
 
@@ -15,7 +11,6 @@ module.exports = async function handler(req, res) {
     if (!transId) return fail(res, 'ไม่พบรหัสรายการ');
     if (!slipUrl) return fail(res, 'กรุณาแนบสลิป');
 
-    // ตรวจว่ามีรายการนี้จริงและสถานะยังไม่ "ชำระแล้ว"
     const { data: existing } = await supabase
       .from('payments')
       .select('trans_id,status')
@@ -36,7 +31,6 @@ module.exports = async function handler(req, res) {
       .eq('trans_id', transId);
 
     if (error) return fail(res, error.message, 500);
-
     return ok(res, { message: 'อัปโหลดสลิปสำเร็จ' });
   } catch (e) {
     return fail(res, e.message, 500);

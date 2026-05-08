@@ -1,6 +1,6 @@
 // api/admin/create-bill.js - ออกบิลให้นักเรียน
-// Ref.1 = เลขบัตรประชาชน 13 หลัก (ตายตัว)
-// Ref.2 = รหัสห้อง 3 หลัก + เทอม 1 หลัก + ปี 2 หลัก (เช่น 101169)
+// Ref.1 = เลขบัตรประชาชน 13 หลัก
+// Ref.2 = รหัสห้อง 3 หลัก + เทอม 1 หลัก + ปี 2 หลัก (เช่น 101169 = ม.1/1 เทอม 1 ปี 69)
 const supabase = require('../../lib/supabase');
 const { requireAdmin, ok, fail, handleOptions } = require('../../lib/auth');
 
@@ -33,7 +33,6 @@ module.exports = async function handler(req, res) {
     if (!Array.isArray(targetClasses) || targetClasses.length === 0)
       return fail(res, 'กรุณาเลือกห้องเรียน');
 
-    // ดึงนักเรียนที่อยู่ในห้องที่เลือก
     const { data: students, error: errS } = await supabase
       .from('students')
       .select('id_card,class')
@@ -45,11 +44,10 @@ module.exports = async function handler(req, res) {
     const batchId = 'B' + Date.now();
     const now = Date.now();
 
-    // เตรียมข้อมูล payments
     const rows = students.map((s, i) => {
       const idc = String(s.id_card).trim();
       const ref1 = idc.replace(/\D/g, '').substring(0, 20);  // เลขบัตรประชาชน 13 หลัก
-      const ref2 = buildRef2(s.class, term, year);            // รหัสห้อง+เทอม+ปี
+      const ref2 = buildRef2(s.class, term, year);            // ห้อง+เทอม+ปี
       return {
         trans_id: 'T' + now + i,
         id_card: idc,
@@ -65,7 +63,6 @@ module.exports = async function handler(req, res) {
       };
     });
 
-    // แบ่ง insert ทีละ 500 แถว (Supabase limit)
     const CHUNK = 500;
     let inserted = 0;
     for (let i = 0; i < rows.length; i += CHUNK) {
@@ -75,7 +72,6 @@ module.exports = async function handler(req, res) {
       inserted += slice.length;
     }
 
-    // บันทึกประวัติการออกบิล
     await supabase.from('billing_history').insert({
       batch_id: batchId,
       admin_name: adminName || user.username || 'Admin',
