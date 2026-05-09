@@ -118,6 +118,7 @@
   <button class="tb2" onclick="sw('cls',this);loadClasses()"><i class="fas fa-chalkboard"></i> ห้องเรียน</button>
   <button class="tb2" onclick="sw('inq',this);loadInquiries()"><i class="fas fa-comments"></i> คำถาม <span id="inqBadge" style="display:none;background:#EF5350;color:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;margin-left:4px"></span></button>
   <button class="tb2" onclick="sw('cfg',this);loadSettings()"><i class="fas fa-cog"></i> ตั้งค่า</button>
+  <button class="tb2" onclick="sw('sto',this);loadStorage()"><i class="fas fa-database"></i> พื้นที่</button>
   <button class="tb2" id="tabAdmins" style="display:none" onclick="sw('adm',this);loadAdmins()"><i class="fas fa-user-shield"></i> ผู้ดูแล</button>
 </div></div>
 
@@ -148,10 +149,10 @@
     <div class="co cot">
       <div class="fb">
         <input type="text" id="fSearch" placeholder="🔍 ค้นหาชื่อ / รหัส / เลขบัตร / ใบเสร็จ" oninput="searchDebounce()" style="flex:1;min-width:220px">
-        <select id="fStat" onchange="loadPay()"><option value="ALL">ทุกสถานะ</option><option>รอชำระ</option><option>กำลังตรวจสอบ</option><option>ชำระแล้ว</option><option>ชำระไม่สำเร็จ</option></select>
-        <select id="fCls" onchange="loadPay()"><option value="ALL">ทุกห้อง</option></select>
-        <select id="fYear" onchange="loadPay()"><option value="ALL">ทุกปี</option></select>
-        <select id="fTerm" onchange="loadPay()"><option value="ALL">ทุกเทอม</option><option value="1">เทอม 1</option><option value="2">เทอม 2</option></select>
+        <select id="fStat" onchange="loadPay(true)"><option value="ALL">ทุกสถานะ</option><option>รอชำระ</option><option>กำลังตรวจสอบ</option><option>ชำระแล้ว</option><option>ชำระไม่สำเร็จ</option></select>
+        <select id="fCls" onchange="loadPay(true)"><option value="ALL">ทุกห้อง</option></select>
+        <select id="fYear" onchange="loadPay(true)"><option value="ALL">ทุกปี</option></select>
+        <select id="fTerm" onchange="loadPay(true)"><option value="ALL">ทุกเทอม</option><option value="1">เทอม 1</option><option value="2">เทอม 2</option></select>
         <button class="bo" onclick="expExcel()"><i class="fas fa-file-excel"></i> Excel</button>
       </div>
 
@@ -171,6 +172,7 @@
         </tr></thead>
         <tbody id="payTb"></tbody>
       </table></div>
+      <div id="payPagination"></div>
     </div>
   </div>
 </div>
@@ -213,14 +215,25 @@
     <div class="co cot">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div class="st" style="margin:0"><i class="fas fa-users"></i> รายชื่อนักเรียน (<span id="stdCnt">0</span> คน)</div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="bo" onclick="openAddStd()"><i class="fas fa-user-plus"></i> เพิ่ม</button>
+          <button class="bo" style="background:linear-gradient(135deg,#1976D2,#0D47A1)" onclick="openLateEnroll()"><i class="fas fa-user-clock"></i> ย้ายเข้ากลางเทอม</button>
           <button class="boo" onclick="openImport()"><i class="fas fa-file-excel"></i> นำเข้า Excel</button>
         </div>
       </div>
-      <div style="position:relative;margin-bottom:10px">
-        <i class="fas fa-search" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#ccc;font-size:.85rem"></i>
-        <input type="text" class="fco" placeholder="ค้นหาชื่อ หรือ เลขบัตร..." style="padding-left:38px" oninput="filterStd(this.value)">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+        <div style="position:relative;flex:1;min-width:220px">
+          <i class="fas fa-search" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#ccc;font-size:.85rem"></i>
+          <input type="text" class="fco" placeholder="ค้นหาชื่อ หรือ เลขบัตร..." style="padding-left:38px" oninput="filterStd(this.value)">
+        </div>
+        <select id="stdStatusFilter" class="fco" style="max-width:200px" onchange="loadStudents()">
+          <option value="ALL">ทุกสถานะ</option>
+          <option value="active">✅ ปกติ</option>
+          <option value="pending_id">⚠️ รอเลขบัตรจริง</option>
+          <option value="transferred_in">🆕 ย้ายเข้า</option>
+          <option value="transferred_out">📤 ย้ายออก</option>
+          <option value="graduated">🎓 จบ</option>
+        </select>
       </div>
       <div class="twrap"><table class="dt">
         <thead><tr><th>เลขบัตร</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>ห้อง</th><th></th></tr></thead>
@@ -347,6 +360,24 @@
 </div>
 
 <!-- TAB: ADMINS (เฉพาะ superadmin) -->
+<!-- TAB: STORAGE -->
+<div class="tp" id="tab-sto">
+  <div class="pg">
+    <div class="co cot" style="margin-bottom:14px">
+      <div class="st"><i class="fas fa-database"></i> พื้นที่จัดเก็บข้อมูล</div>
+      <div style="font-size:.85rem;color:#666;margin-bottom:14px">
+        <i class="fas fa-info-circle"></i> ระบบใช้ Supabase Free Plan: Database 500 MB + Storage 1 GB
+      </div>
+
+      <div id="storageContent">
+        <div style="text-align:center;padding:40px;color:#999">
+          <i class="fas fa-spinner fa-spin" style="font-size:2rem"></i><br><br>กำลังตรวจสอบ...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="tp" id="tab-adm">
   <div class="pg">
     <div class="co cot">
@@ -445,7 +476,6 @@ if(!localStorage.getItem('adminToken')){
 }
 var adminName = localStorage.getItem('adminName') || 'Admin';
 var adminRole = localStorage.getItem('adminRole') || 'admin';
-var allPayData = [];
 var allStudents = [];
 
 document.getElementById('adName').innerText = adminName + (adminRole==='superadmin'?' (Super Admin)':'');
@@ -484,24 +514,41 @@ function initYear(){
 }
 
 // ══════════════════════════════
-// PAYMENTS
+// PAYMENTS (Server-side pagination)
 // ══════════════════════════════
-function loadPay(){
+var allPayData = [];
+var _payPage = 1;
+var _payPageSize = 50;
+var _payTotalPages = 1;
+var _payTotalCount = 0;
+
+function loadPay(resetPage){
+  if (resetPage) _payPage = 1;
+
   var qs = [
     'status=' + encodeURIComponent(document.getElementById('fStat').value),
     'cls='    + encodeURIComponent(document.getElementById('fCls').value),
     'year='   + encodeURIComponent(document.getElementById('fYear').value),
-    'term='   + encodeURIComponent(document.getElementById('fTerm').value)
+    'term='   + encodeURIComponent(document.getElementById('fTerm').value),
+    'page='   + _payPage,
+    'pageSize=' + _payPageSize
   ];
   var sc = (document.getElementById('fSearch')||{}).value || '';
   if (sc.trim()) qs.push('search=' + encodeURIComponent(sc.trim()));
 
+  // ⭐ โหลด stats summary แยก (รวมทั้งระบบ ไม่ใช่แค่หน้านี้)
+  api('/admin/payments?action=summary&'
+    + 'year=' + encodeURIComponent(document.getElementById('fYear').value)
+    + '&term=' + encodeURIComponent(document.getElementById('fTerm').value)
+  ).then(renderStatsFromSummary).catch(function(){});
+
   api('/admin/payments?' + qs.join('&'))
     .then(function(d){
       allPayData = d.payments || [];
+      _payTotalPages = (d.pagination && d.pagination.totalPages) || 1;
+      _payTotalCount = (d.pagination && d.pagination.totalCount) || 0;
       renderPay(allPayData);
-      renderStats(allPayData);
-      // โหลด charts ครั้งเดียว (cache)
+      renderPagination();
       if (!_charts.loaded) { loadCharts(); _charts.loaded = true; }
     })
     .catch(function(e){
@@ -510,7 +557,51 @@ function loadPay(){
     });
 }
 
+function renderPagination(){
+  var box = document.getElementById('payPagination');
+  if (!box) return;
+  if (_payTotalPages <= 1) { box.innerHTML = ''; return; }
+
+  var html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;padding:14px 0">';
+  html += '<button class="bo" onclick="goPayPage(1)" '+(_payPage===1?'disabled':'')+'><i class="fas fa-angle-double-left"></i></button>';
+  html += '<button class="bo" onclick="goPayPage('+(_payPage-1)+')" '+(_payPage<=1?'disabled':'')+'><i class="fas fa-angle-left"></i></button>';
+  html += '<span style="padding:0 8px;font-weight:600">หน้า '+_payPage+' / '+_payTotalPages+' (รวม '+_payTotalCount.toLocaleString()+')</span>';
+  html += '<button class="bo" onclick="goPayPage('+(_payPage+1)+')" '+(_payPage>=_payTotalPages?'disabled':'')+'><i class="fas fa-angle-right"></i></button>';
+  html += '<button class="bo" onclick="goPayPage('+_payTotalPages+')" '+(_payPage===_payTotalPages?'disabled':'')+'><i class="fas fa-angle-double-right"></i></button>';
+  html += '<select onchange="changePageSize(this.value)" style="margin-left:8px">';
+  ['25','50','100','200'].forEach(function(s){
+    html += '<option value="'+s+'" '+(s==String(_payPageSize)?'selected':'')+'>'+s+' / หน้า</option>';
+  });
+  html += '</select>';
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+function goPayPage(p){
+  if (p < 1 || p > _payTotalPages) return;
+  _payPage = p;
+  loadPay(false);
+  window.scrollTo({ top: 200, behavior: 'smooth' });
+}
+
+function changePageSize(n){
+  _payPageSize = parseInt(n, 10);
+  _payPage = 1;
+  loadPay(false);
+}
+
+function renderStatsFromSummary(s){
+  document.getElementById('statGrid').innerHTML =
+    '<div class="stat"><div class="n">'+(s.total||0).toLocaleString()+'</div><div class="l">ทั้งหมด</div></div>'+
+    '<div class="stat"><div class="n">'+((s['รอชำระ']||0)).toLocaleString()+'</div><div class="l">รอชำระ</div></div>'+
+    '<div class="stat"><div class="n">'+((s['กำลังตรวจสอบ']||0)).toLocaleString()+'</div><div class="l">รอตรวจสอบ</div></div>'+
+    '<div class="stat"><div class="n">'+((s['ชำระแล้ว']||0)).toLocaleString()+'</div><div class="l">ชำระแล้ว</div></div>'+
+    '<div class="stat"><div class="n">'+((s['ชำระไม่สำเร็จ']||0)).toLocaleString()+'</div><div class="l">ไม่ผ่าน</div></div>'+
+    '<div class="stat"><div class="n">฿'+Math.round(s.totalAmount||0).toLocaleString()+'</div><div class="l">รวมรับ</div></div>';
+}
+
 function renderStats(d){
+  // legacy — ใช้ renderStatsFromSummary แทน
   var tot=d.length, roc=0, chk=0, dn=0, fl=0, amt=0;
   d.forEach(function(r){
     if(r.status==='รอชำระ') roc++;
@@ -689,34 +780,76 @@ function closeSlip(){ document.getElementById('slipModal').classList.remove('ope
 
 // ── EXCEL EXPORT ──
 function expExcel(){
-  // ใช้ API export (CSV) — เร็วและรองรับ filter ปัจจุบัน
-  var qs = new URLSearchParams();
-  qs.set('action', 'export');
-  var st = document.getElementById('fStat').value;
-  var cl = document.getElementById('fCls').value;
-  var yr = document.getElementById('fYear').value;
-  var tm = document.getElementById('fTerm').value;
-  var sc = document.getElementById('fSearch').value.trim();
-  if (st !== 'ALL') qs.set('status', st);
-  if (cl !== 'ALL') qs.set('cls', cl);
-  if (yr !== 'ALL') qs.set('year', yr);
-  if (tm !== 'ALL') qs.set('term', tm);
-  if (sc) qs.set('search', sc);
+  // คำนวณจำนวน records
+  var totalRecords = _payTotalCount || 0;
 
-  var url = '/api/admin/payments?' + qs.toString();
-  var token = localStorage.getItem('token') || '';
+  // ถ้าเยอะ — เตือนก่อน
+  var doExport = function(){
+    var qs = new URLSearchParams();
+    qs.set('action', 'export');
+    var st = document.getElementById('fStat').value;
+    var cl = document.getElementById('fCls').value;
+    var yr = document.getElementById('fYear').value;
+    var tm = document.getElementById('fTerm').value;
+    var sc = document.getElementById('fSearch').value.trim();
+    if (st !== 'ALL') qs.set('status', st);
+    if (cl !== 'ALL') qs.set('cls', cl);
+    if (yr !== 'ALL') qs.set('year', yr);
+    if (tm !== 'ALL') qs.set('term', tm);
+    if (sc) qs.set('search', sc);
 
-  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(function(r){ return r.blob(); })
-    .then(function(blob){
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'payments_' + new Date().getTime() + '.csv';
-      a.click();
-      URL.revokeObjectURL(a.href);
-      toast('success','Export สำเร็จ!');
-    })
-    .catch(function(){ toast('error','Export ไม่สำเร็จ'); });
+    var url = '/api/admin/payments?' + qs.toString();
+    var token = localStorage.getItem('token') || '';
+
+    Swal.fire({
+      title: 'กำลัง Export...',
+      html: '<i class="fas fa-spinner fa-spin" style="font-size:2rem;color:#FF6B35"></i><br><br>กำลังดึงข้อมูลและสร้างไฟล์ CSV<br><span style="font-size:.8rem;color:#666">(อาจใช้เวลาสักครู่ถ้าข้อมูลเยอะ)</span>',
+      showConfirmButton: false,
+      allowOutsideClick: false
+    });
+
+    fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+      .then(function(r){
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.blob();
+      })
+      .then(function(blob){
+        if (blob.size < 100) throw new Error('ไฟล์ว่าง — อาจไม่มีข้อมูลที่ตรงกับ filter');
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        var dt = new Date().toISOString().slice(0,10);
+        a.download = 'payments_' + dt + '_' + new Date().getTime() + '.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        Swal.close();
+        toast('success', 'Export สำเร็จ! เปิดด้วย Excel ได้ทันที');
+      })
+      .catch(function(e){
+        Swal.fire({
+          icon: 'error',
+          title: 'Export ไม่สำเร็จ',
+          text: e.message || 'กรุณาลองใหม่ หรือกรอง filter ให้แคบลง',
+          confirmButtonColor: '#FF6B35'
+        });
+      });
+  };
+
+  if (totalRecords > 1000) {
+    Swal.fire({
+      title: 'ข้อมูลเยอะ',
+      html: 'จะ export ประมาณ <strong>' + totalRecords.toLocaleString() + '</strong> รายการ<br>อาจใช้เวลาสักครู่<br><br>หรือกรอง filter ให้แคบลงก่อน?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#FF6B35',
+      cancelButtonColor: '#9E9E9E',
+      confirmButtonText: '<i class="fas fa-file-csv"></i> Export ทั้งหมด',
+      cancelButtonText: 'ยกเลิก'
+    }).then(function(r){
+      if (r.isConfirmed) doExport();
+    });
+  } else {
+    doExport();
+  }
 }
 
 // ══════════════════════════════
@@ -792,7 +925,7 @@ function renderClassChart(data){
 var _searchTimer = null;
 function searchDebounce(){
   clearTimeout(_searchTimer);
-  _searchTimer = setTimeout(loadPay, 350);
+  _searchTimer = setTimeout(function(){ loadPay(true); }, 350);
 }
 
 // ══════════════════════════════
@@ -946,31 +1079,60 @@ function loadBillHistory(){
 // STUDENTS
 // ══════════════════════════════
 function loadStudents(){
-  api('/admin/students').then(function(r){
+  var statusFilter = (document.getElementById('stdStatusFilter')||{}).value || 'ALL';
+  var qs = statusFilter !== 'ALL' ? '?status=' + statusFilter : '';
+  api('/admin/students' + qs).then(function(r){
     allStudents = r.students || [];
     document.getElementById('stdCnt').innerText = allStudents.length;
     renderStd(allStudents);
   });
 }
 
+function statusBadge(status, idType){
+  var label = '';
+  var color = '#999';
+  if (status === 'pending_id' || idType === 'g-code' || idType === 'temp') {
+    label = '⚠️ รอเลขบัตรจริง'; color = '#FF9800';
+  } else if (status === 'transferred_in') {
+    label = '🆕 ย้ายเข้า'; color = '#1976D2';
+  } else if (status === 'transferred_out') {
+    label = '📤 ย้ายออก'; color = '#9E9E9E';
+  } else if (status === 'graduated') {
+    label = '🎓 จบ'; color = '#4CAF50';
+  } else {
+    return '';
+  }
+  return '<span style="display:inline-block;background:'+color+';color:#fff;font-size:.7rem;padding:2px 8px;border-radius:50px;margin-left:6px">'+label+'</span>';
+}
+
 function renderStd(d){
   var tb = document.getElementById('stdTb');
   if(!d.length){ tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">ไม่มีข้อมูล</td></tr>'; return; }
   tb.innerHTML = d.map(function(s){
+    var idDisplay = s.idCard;
+    var idColor = (s.idType !== 'real') ? 'color:#FF6B35;font-weight:600' : '';
+    var act = '<button class="bic bvw" title="ออกบิลรายบุคคล" onclick="openIndividualBill(\''+s.idCard+'\',\''+escapeJs(s.name)+'\',\''+s.class+'\')"><i class="fas fa-file-invoice"></i></button>';
+    if (s.idType !== 'real') {
+      act += '<button class="bic" style="background:#FF9800" title="อัปเดตเป็นเลขบัตรจริง" onclick="openUpdateId(\''+s.idCard+'\',\''+escapeJs(s.name)+'\')"><i class="fas fa-id-card"></i></button>';
+    }
+    act += '<button class="bic bde" onclick="doDelStd(\''+s.idCard+'\')"><i class="fas fa-trash"></i></button>';
+
     return '<tr>'
-      +'<td>'+s.idCard+'</td>'
+      +'<td><span style="'+idColor+'">'+idDisplay+'</span></td>'
       +'<td>'+(s.studentId||'-')+'</td>'
-      +'<td>'+s.name+'</td>'
+      +'<td>'+s.name+statusBadge(s.status, s.idType)+'</td>'
       +'<td>'+(s.class||'-')+'</td>'
-      +'<td><button class="bic bde" onclick="doDelStd(\''+s.idCard+'\')"><i class="fas fa-trash"></i></button></td>'
+      +'<td>'+act+'</td>'
       +'</tr>';
   }).join('');
 }
 
+function escapeJs(s){ return String(s||'').replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+
 function filterStd(q){
   q = q.trim().toLowerCase();
   var f = !q ? allStudents : allStudents.filter(function(s){
-    return (s.name||'').toLowerCase().includes(q) || (s.idCard||'').includes(q);
+    return (s.name||'').toLowerCase().includes(q) || (s.idCard||'').toLowerCase().includes(q);
   });
   renderStd(f);
 }
@@ -992,12 +1154,192 @@ function saveStd(){
     class: document.getElementById('aCls').value,
     imageUrl: document.getElementById('aImg').value.trim()
   };
-  if(!p.idCard || p.idCard.length!==13) return toast('warning','เลขบัตรต้อง 13 หลัก');
+  if(!p.idCard) return toast('warning','กรอกเลขบัตร / G-code / TEMP-XXXXXX');
+
+  // ตรวจ format ID — 3 รูปแบบ
+  var validReal = /^\d{13}$/.test(p.idCard);
+  var validG = /^G\d{12}$/i.test(p.idCard);
+  var validTemp = /^TEMP-\d{6,}$/i.test(p.idCard);
+  if (!validReal && !validG && !validTemp) {
+    return toast('warning','รูปแบบ ID ไม่ถูกต้อง: เลขบัตร 13 หลัก, G + 12 หลัก หรือ TEMP-XXXXXX');
+  }
   if(!p.name) return toast('warning','กรอกชื่อ');
 
   api('/admin/students', { method:'POST', body: p })
     .then(function(){ closeModal('addStdModal'); loadStudents(); toast('success','เพิ่มสำเร็จ'); })
     .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+}
+
+// ══════════════════════════════
+// LATE ENROLLMENT (ย้ายเข้ากลางเทอม)
+// ══════════════════════════════
+function openLateEnroll(){
+  // โหลดห้องเรียน
+  api('/admin/classes').then(function(r){
+    var classes = r.classes || [];
+    var classOptions = classes.map(function(c){
+      return '<option value="'+c+'">'+c+'</option>';
+    }).join('');
+
+    var thisYear = new Date().getFullYear() + 543;
+
+    Swal.fire({
+      title: '<i class="fas fa-user-clock" style="color:#1976D2"></i> ย้ายเข้ากลางเทอม',
+      html:
+        '<div style="text-align:left;font-size:.9rem">'
+        + '<div style="background:#E3F2FD;border-left:4px solid #2196F3;padding:10px;margin-bottom:14px;color:#0D47A1;font-size:.85rem">'
+        + '<strong>📌 หมายเหตุ:</strong><br>'
+        + '• ถ้าเด็กยังไม่มีเลขบัตรประชาชน — เว้นว่างไว้ ระบบจะสร้าง TEMP-ID ให้<br>'
+        + '• ถ้ามี G-code (เด็กต่างด้าว) — ใส่ G + ตัวเลข 12 หลัก'
+        + '</div>'
+        + '<label>เลขบัตรประชาชน 13 หลัก / G-code / เว้นว่าง</label>'
+        + '<input id="leID" class="swal2-input" placeholder="13 หลัก, G123456789012 หรือเว้นว่าง" style="width:100%">'
+        + '<label>รหัสนักเรียน</label>'
+        + '<input id="leSID" class="swal2-input" placeholder="เช่น 12345" style="width:100%">'
+        + '<label>ชื่อ-นามสกุล <span style="color:red">*</span></label>'
+        + '<input id="leName" class="swal2-input" placeholder="เด็กชาย..." style="width:100%">'
+        + '<label>ห้อง <span style="color:red">*</span></label>'
+        + '<select id="leClass" class="swal2-input" style="width:100%"><option value="">-- เลือกห้อง --</option>'+classOptions+'</select>'
+        + '<label>หมายเหตุ</label>'
+        + '<input id="leNotes" class="swal2-input" placeholder="ย้ายมาจาก..." style="width:100%">'
+        + '<hr style="margin:14px 0">'
+        + '<div style="font-weight:600;color:#FF6B35;margin-bottom:8px">📋 ออกบิลพร้อมกันเลย? (ออปชั่น)</div>'
+        + '<label>หัวข้อบิล</label>'
+        + '<input id="leBillTitle" class="swal2-input" placeholder="ค่าบำรุงการศึกษา" value="ค่าบำรุงการศึกษา" style="width:100%">'
+        + '<div style="display:flex;gap:8px"><div style="flex:1"><label>ปี</label><input id="leBillYear" class="swal2-input" value="'+thisYear+'" style="width:100%"></div><div style="flex:1"><label>เทอม</label><select id="leBillTerm" class="swal2-input" style="width:100%"><option value="1">1</option><option value="2">2</option></select></div></div>'
+        + '<label>ยอดเงิน (เว้นว่าง = ไม่ออกบิล)</label>'
+        + '<input id="leBillAmount" type="number" class="swal2-input" placeholder="2500" style="width:100%">'
+        + '</div>',
+      width: 540,
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-save"></i> บันทึก',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#1976D2',
+      preConfirm: function(){
+        var name = document.getElementById('leName').value.trim();
+        var cls = document.getElementById('leClass').value;
+        if (!name) { Swal.showValidationMessage('กรอกชื่อ'); return false; }
+        if (!cls) { Swal.showValidationMessage('เลือกห้อง'); return false; }
+
+        var data = {
+          idCard: document.getElementById('leID').value.trim(),
+          studentId: document.getElementById('leSID').value.trim(),
+          name: name, class: cls,
+          notes: document.getElementById('leNotes').value.trim()
+        };
+
+        var amount = parseFloat(document.getElementById('leBillAmount').value);
+        if (amount > 0) {
+          data.bills = [{
+            year: document.getElementById('leBillYear').value.trim(),
+            term: document.getElementById('leBillTerm').value,
+            amount: amount,
+            title: document.getElementById('leBillTitle').value.trim() || 'ค่าบำรุงการศึกษา'
+          }];
+        }
+        return data;
+      }
+    }).then(function(r){
+      if (!r.isConfirmed) return;
+      api('/admin/students?action=enroll-late', { method:'POST', body: r.value })
+        .then(function(res){
+          Swal.fire({ icon:'success', title:'สำเร็จ!', html: res.message, confirmButtonColor:'#4CAF50' });
+          loadStudents();
+        })
+        .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+    });
+  });
+}
+
+// ══════════════════════════════
+// INDIVIDUAL BILL (ออกบิลรายบุคคล)
+// ══════════════════════════════
+function openIndividualBill(idCard, name, cls){
+  var thisYear = new Date().getFullYear() + 543;
+  Swal.fire({
+    title: '<i class="fas fa-file-invoice" style="color:#FF6B35"></i> ออกบิลรายบุคคล',
+    html:
+      '<div style="text-align:left;font-size:.9rem">'
+      + '<div style="background:#FFF3E0;border-left:4px solid #FF9800;padding:10px;margin-bottom:14px">'
+      + '<div><strong>นักเรียน:</strong> '+name+'</div>'
+      + '<div><strong>ห้อง:</strong> '+cls+' &nbsp; <strong>ID:</strong> '+idCard+'</div>'
+      + '</div>'
+      + '<label>หัวข้อบิล <span style="color:red">*</span></label>'
+      + '<input id="ibTitle" class="swal2-input" placeholder="ค่าบำรุงการศึกษา" value="ค่าบำรุงการศึกษา" style="width:100%">'
+      + '<div style="display:flex;gap:8px"><div style="flex:1"><label>ปี</label><input id="ibYear" class="swal2-input" value="'+thisYear+'" style="width:100%"></div><div style="flex:1"><label>เทอม</label><select id="ibTerm" class="swal2-input" style="width:100%"><option value="1">1</option><option value="2">2</option></select></div></div>'
+      + '<label>ยอดเงิน <span style="color:red">*</span></label>'
+      + '<input id="ibAmount" type="number" class="swal2-input" placeholder="2500" style="width:100%">'
+      + '<label>URL เอกสารแนบ (ออปชั่น)</label>'
+      + '<input id="ibDoc" class="swal2-input" placeholder="https://..." style="width:100%">'
+      + '</div>',
+    width: 480,
+    showCancelButton: true,
+    confirmButtonText: '<i class="fas fa-paper-plane"></i> ออกบิล',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#FF6B35',
+    preConfirm: function(){
+      var amount = parseFloat(document.getElementById('ibAmount').value);
+      var title = document.getElementById('ibTitle').value.trim();
+      if (!amount || amount <= 0) { Swal.showValidationMessage('กรอกยอดเงิน'); return false; }
+      if (!title) { Swal.showValidationMessage('กรอกหัวข้อ'); return false; }
+      return {
+        idCard, year: document.getElementById('ibYear').value.trim(),
+        term: document.getElementById('ibTerm').value,
+        amount, title,
+        docUrl: document.getElementById('ibDoc').value.trim(),
+        adminName: localStorage.getItem('adminName') || 'Admin'
+      };
+    }
+  }).then(function(r){
+    if (!r.isConfirmed) return;
+    api('/admin/create-bill?action=individual', { method:'POST', body: r.value })
+      .then(function(res){
+        var html = res.message;
+        if (res.warning) html += '<br><br><span style="color:#FF6B35"><i class="fas fa-exclamation-triangle"></i> ' + res.warning + '</span>';
+        Swal.fire({ icon:'success', title:'ออกบิลสำเร็จ!', html: html, confirmButtonColor:'#4CAF50' });
+      })
+      .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+  });
+}
+
+// ══════════════════════════════
+// UPDATE ID (เปลี่ยน TEMP/G เป็นเลขบัตรจริง)
+// ══════════════════════════════
+function openUpdateId(oldId, name){
+  Swal.fire({
+    title: '<i class="fas fa-id-card" style="color:#FF9800"></i> อัปเดตเป็นเลขบัตรจริง',
+    html:
+      '<div style="text-align:left;font-size:.9rem">'
+      + '<div style="background:#FFF3E0;padding:10px;border-radius:8px;margin-bottom:14px">'
+      + '<div><strong>นักเรียน:</strong> '+name+'</div>'
+      + '<div><strong>ID เดิม:</strong> <code>'+oldId+'</code></div>'
+      + '</div>'
+      + '<label>เลขบัตรประชาชนจริง 13 หลัก <span style="color:red">*</span></label>'
+      + '<input id="upNewId" class="swal2-input" placeholder="1100200300401" maxlength="13" inputmode="numeric" style="width:100%">'
+      + '<div style="font-size:.8rem;color:#999;margin-top:8px">⚠️ การกระทำนี้จะอัปเดต ID ทั้งใน <strong>students</strong> และ <strong>payments</strong> ที่เชื่อมโยง</div>'
+      + '</div>',
+    width: 480,
+    showCancelButton: true,
+    confirmButtonText: '<i class="fas fa-save"></i> อัปเดต',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#FF9800',
+    preConfirm: function(){
+      var newId = document.getElementById('upNewId').value.trim();
+      if (!/^\d{13}$/.test(newId)) {
+        Swal.showValidationMessage('เลขบัตรต้องเป็นตัวเลข 13 หลักครบ');
+        return false;
+      }
+      return { oldId, newId };
+    }
+  }).then(function(r){
+    if (!r.isConfirmed) return;
+    api('/admin/students?action=update-id', { method:'POST', body: r.value })
+      .then(function(res){
+        Swal.fire({ icon:'success', title:'อัปเดตสำเร็จ!', html: res.message, confirmButtonColor:'#4CAF50' });
+        loadStudents();
+      })
+      .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+  });
 }
 
 function doDelStd(id){
@@ -1325,6 +1667,111 @@ setTimeout(function(){
 if (adminRole === 'superadmin') {
   var tabEl = document.getElementById('tabAdmins');
   if (tabEl) tabEl.style.display = 'inline-flex';
+}
+
+// ══════════════════════════════
+// STORAGE DASHBOARD
+// ══════════════════════════════
+function loadStorage(){
+  var box = document.getElementById('storageContent');
+  if (!box) return;
+
+  box.innerHTML = '<div style="text-align:center;padding:40px;color:#999"><i class="fas fa-spinner fa-spin" style="font-size:2rem"></i><br><br>กำลังตรวจสอบ...</div>';
+
+  api('/admin/stats?action=storage').then(function(r){
+    var html = '';
+
+    // Warnings
+    if (r.warnings && r.warnings.length > 0) {
+      html += '<div style="background:#FFEBEE;border:2px solid #E53935;border-radius:10px;padding:14px;margin-bottom:14px">';
+      html += '<div style="color:#C62828;font-weight:700;margin-bottom:8px"><i class="fas fa-exclamation-triangle"></i> คำเตือน</div>';
+      r.warnings.forEach(function(w){
+        html += '<div style="color:#C62828;font-size:.9rem">• ' + w + '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Database Section
+    var dbColor = r.database.percent > 80 ? '#E53935' : (r.database.percent > 50 ? '#FF9800' : '#4CAF50');
+    html += '<div style="background:linear-gradient(135deg,#E3F2FD,#fff);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
+    html += '<div><i class="fas fa-database" style="color:#2196F3;font-size:1.4rem"></i> <strong style="font-size:1.1rem">ฐานข้อมูล (PostgreSQL)</strong></div>';
+    html += '<div style="text-align:right"><strong style="font-size:1.4rem;color:'+dbColor+'">'+r.database.percent.toFixed(1)+'%</strong></div>';
+    html += '</div>';
+
+    // Progress bar
+    html += '<div style="background:#E0E0E0;border-radius:10px;height:14px;overflow:hidden;margin-bottom:8px">';
+    html += '<div style="background:'+dbColor+';height:100%;width:'+Math.min(100,r.database.percent)+'%;transition:width .5s"></div>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:.85rem;color:#666">';
+    html += '<span>ใช้ไป: <strong>'+r.database.usedMb+' MB</strong></span>';
+    html += '<span>เหลือ: <strong>'+r.database.remainingMb+' MB</strong></span>';
+    html += '<span>ทั้งหมด: '+r.database.limitMb+' MB</span>';
+    html += '</div>';
+
+    // Tables breakdown
+    if (r.database.tables && r.database.tables.length > 0) {
+      html += '<div style="margin-top:14px">';
+      html += '<div style="font-size:.85rem;color:#666;margin-bottom:8px"><i class="fas fa-table"></i> รายละเอียดตาราง:</div>';
+      html += '<table style="width:100%;font-size:.85rem;border-collapse:collapse">';
+      html += '<thead><tr style="background:#F5F5F5"><th style="text-align:left;padding:6px 10px">ตาราง</th><th style="text-align:right;padding:6px 10px">แถว</th><th style="text-align:right;padding:6px 10px">ขนาด (MB)</th></tr></thead><tbody>';
+      r.database.tables.slice(0, 8).forEach(function(t){
+        var name = t.name.replace('public.', '');
+        html += '<tr style="border-top:1px solid #eee"><td style="padding:6px 10px">'+name+'</td><td style="text-align:right;padding:6px 10px">'+t.rowCount.toLocaleString()+'</td><td style="text-align:right;padding:6px 10px">'+t.sizeMb.toFixed(2)+'</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+
+    // Storage Section
+    var stColor = r.storage.percent > 80 ? '#E53935' : (r.storage.percent > 50 ? '#FF9800' : '#4CAF50');
+    html += '<div style="background:linear-gradient(135deg,#FFF3E0,#fff);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
+    html += '<div><i class="fas fa-image" style="color:#FF9800;font-size:1.4rem"></i> <strong style="font-size:1.1rem">รูปสลิป (Storage)</strong></div>';
+    html += '<div><strong style="font-size:1.4rem;color:'+stColor+'">'+r.storage.percent.toFixed(1)+'%</strong></div>';
+    html += '</div>';
+
+    html += '<div style="background:#E0E0E0;border-radius:10px;height:14px;overflow:hidden;margin-bottom:8px">';
+    html += '<div style="background:'+stColor+';height:100%;width:'+Math.min(100,r.storage.percent)+'%;transition:width .5s"></div>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:.85rem;color:#666;margin-bottom:14px">';
+    html += '<span>ใช้ไป: <strong>'+r.storage.usedGb+' GB</strong></span>';
+    html += '<span>เหลือ: <strong>'+r.storage.remainingGb+' GB</strong></span>';
+    html += '<span>ทั้งหมด: '+r.storage.limitGb+' GB</span>';
+    html += '</div>';
+
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;font-size:.85rem">';
+    html += '<div style="background:#fff;padding:10px;border-radius:8px;text-align:center"><div style="color:#999;font-size:.75rem">จำนวนสลิป</div><div style="font-size:1.2rem;font-weight:700;color:#FF6B35">'+r.storage.slipCount.toLocaleString()+'</div></div>';
+    html += '<div style="background:#fff;padding:10px;border-radius:8px;text-align:center"><div style="color:#999;font-size:.75rem">ขนาดเฉลี่ย/สลิป</div><div style="font-size:1.2rem;font-weight:700;color:#FF6B35">'+r.storage.avgSlipSizeKb+' KB</div></div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Records summary
+    html += '<div style="background:linear-gradient(135deg,#E8F5E9,#fff);border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">';
+    html += '<div style="margin-bottom:14px"><i class="fas fa-chart-bar" style="color:#4CAF50;font-size:1.4rem"></i> <strong style="font-size:1.1rem">ข้อมูลปัจจุบัน + ประมาณการ</strong></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">';
+    html += '<div style="background:#fff;padding:14px;border-radius:10px;text-align:center;border-top:3px solid #2196F3"><div style="font-size:.8rem;color:#666">นักเรียนทั้งหมด</div><div style="font-size:1.6rem;font-weight:700;color:#1976D2">'+r.records.totalStudents.toLocaleString()+'</div></div>';
+    html += '<div style="background:#fff;padding:14px;border-radius:10px;text-align:center;border-top:3px solid #FF9800"><div style="font-size:.8rem;color:#666">รายการชำระ</div><div style="font-size:1.6rem;font-weight:700;color:#F57C00">'+r.records.totalPayments.toLocaleString()+'</div></div>';
+    html += '<div style="background:#fff;padding:14px;border-radius:10px;text-align:center;border-top:3px solid #4CAF50"><div style="font-size:.8rem;color:#666">ชำระแล้ว</div><div style="font-size:1.6rem;font-weight:700;color:#2E7D32">'+r.records.totalPaid.toLocaleString()+'</div></div>';
+    html += '<div style="background:#fff;padding:14px;border-radius:10px;text-align:center;border-top:3px solid #9C27B0"><div style="font-size:.8rem;color:#666">เพิ่มได้อีก ~ (records)</div><div style="font-size:1.6rem;font-weight:700;color:#6A1B9A">'+r.records.estimatedMoreRows.toLocaleString()+'</div></div>';
+    html += '<div style="background:#fff;padding:14px;border-radius:10px;text-align:center;border-top:3px solid #E91E63"><div style="font-size:.8rem;color:#666">เพิ่มสลิปได้อีก ~</div><div style="font-size:1.6rem;font-weight:700;color:#C2185B">'+r.records.estimatedMoreSlips.toLocaleString()+'</div></div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Tips
+    html += '<div style="background:#E3F2FD;border:1px solid #2196F3;border-radius:10px;padding:14px;margin-top:14px;font-size:.85rem;color:#0D47A1">';
+    html += '<strong><i class="fas fa-lightbulb"></i> เคล็ดลับ:</strong><br>';
+    html += '• Database เต็ม → ลบ <code>activity_logs</code> เก่า > 6 เดือน<br>';
+    html += '• Storage เต็ม → ลบรูปสลิปของ payments ที่อนุมัติแล้ว > 1 ปี<br>';
+    html += '• Upgrade Pro: $25/เดือน → 8 GB DB + 100 GB storage';
+    html += '</div>';
+
+    html += '<div style="text-align:center;margin-top:14px"><button class="bo" onclick="loadStorage()"><i class="fas fa-sync"></i> รีเฟรช</button></div>';
+
+    box.innerHTML = html;
+  }).catch(function(e){
+    box.innerHTML = '<div style="text-align:center;padding:40px;color:#E53935"><i class="fas fa-exclamation-circle" style="font-size:2rem"></i><br><br>'+(e.message||'โหลดไม่สำเร็จ')+'<br><br><button class="bo" onclick="loadStorage()"><i class="fas fa-sync"></i> ลองใหม่</button></div>';
+  });
 }
 
 function loadAdmins(){

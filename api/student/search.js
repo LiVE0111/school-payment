@@ -1,4 +1,4 @@
-// api/student/search.js - ค้นหาข้อมูลนักเรียน + รายการชำระจาก ID Card
+// api/student/search.js - ค้นหาข้อมูลนักเรียน + รายการชำระ
 const supabase = require('../../lib/supabase');
 const { ok, fail, handleOptions } = require('../../lib/auth');
 
@@ -17,9 +17,7 @@ module.exports = async function handler(req, res) {
       .eq('id_card', idCard)
       .maybeSingle();
 
-    if (!student) {
-      return ok(res, { found: false });
-    }
+    if (!student) return ok(res, { found: false });
 
     // 2. ดึงรายการชำระ
     const { data: payments } = await supabase
@@ -39,6 +37,9 @@ module.exports = async function handler(req, res) {
     const taxId = settings.TAX_ID || '';
     const suffix = settings.BILLER_SUFFIX || '00';
 
+    // ตรวจว่าเลขบัตรเป็นจริงหรือ TEMP/G-code
+    const isRealId = /^\d{13}$/.test(student.id_card);
+
     return ok(res, {
       found: true,
       student: {
@@ -46,7 +47,10 @@ module.exports = async function handler(req, res) {
         studentId: student.student_id || '',
         name: student.name || '',
         class: student.class || '',
-        imageUrl: student.image_url || ''
+        imageUrl: student.image_url || '',
+        status: student.status || 'active',
+        notes: student.notes || '',
+        idType: isRealId ? 'real' : (student.id_card.startsWith('G') ? 'g-code' : 'temp')
       },
       payments: (payments || []).map(p => ({
         transId: p.trans_id,
@@ -62,6 +66,9 @@ module.exports = async function handler(req, res) {
         slipUrl: p.slip_url || '',
         payerName: p.payer_name || '',
         batchId: p.batch_id || '',
+        billType: p.bill_type || 'batch',
+        receiptNo: p.receipt_no || '',
+        timestamp: p.updated_at,
         taxId,
         billerSuffix: suffix
       }))
