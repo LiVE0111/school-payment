@@ -5,6 +5,14 @@
   'use strict';
 
   var STORAGE_KEY = 'darkMode';
+  var RESET_VERSION_KEY = 'darkModeResetV1';  // ⭐ เปลี่ยนเลขนี้เพื่อ force reset ครั้งใหม่
+
+  // ⭐ ONE-TIME RESET: บังคับทุก user กลับเป็น light เพียงครั้งเดียว
+  // (รัน 1 ครั้งต่อ browser — หลังจากนั้นเคารพการเลือกของ user)
+  if (!localStorage.getItem(RESET_VERSION_KEY)) {
+    localStorage.removeItem(STORAGE_KEY);  // ล้างค่าเก่า
+    localStorage.setItem(RESET_VERSION_KEY, '1');  // mark ว่า reset แล้ว
+  }
 
   function applyDarkMode(enabled){
     if (enabled) {
@@ -25,9 +33,8 @@
   function isDarkEnabled(){
     var saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'true') return true;
-    if (saved === 'false') return false;
-    // ถ้ายังไม่เคยตั้ง → ใช้ system preference
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Default: ALWAYS light mode (ไม่สนใจ system preference)
+    return false;
   }
 
   window.toggleDarkMode = function(){
@@ -58,15 +65,6 @@
   function init(){
     applyDarkMode(isDarkEnabled());
     bindToggles();
-
-    // Listen for system theme changes (only if user hasn't manually set)
-    if (!localStorage.getItem(STORAGE_KEY) && window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e){
-        if (!localStorage.getItem(STORAGE_KEY)) {
-          applyDarkMode(e.matches);
-        }
-      });
-    }
 
     // Re-bind toggles when DOM changes (modals add new buttons)
     var observer = new MutationObserver(bindToggles);

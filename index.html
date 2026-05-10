@@ -691,6 +691,13 @@ function toggleDark(){
   applyTheme(nx);
   try { localStorage.setItem('theme', nx); } catch(e){}
 }
+// ⭐ One-time reset: บังคับทุก user เป็น light
+try {
+  if (!localStorage.getItem('themeResetV1')) {
+    localStorage.removeItem('theme');
+    localStorage.setItem('themeResetV1', '1');
+  }
+} catch(e){}
 try { applyTheme(localStorage.getItem('theme') || 'light'); } catch(e){ applyTheme('light'); }
 
 /* ════════════════════════════════
