@@ -96,6 +96,13 @@
     .ls{width:48px;height:48px;border:4px solid #f0f0f0;border-top-color:var(--o);border-radius:50%;animation:spin 1s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
+<link rel="stylesheet" href="/assets/animations.css">
+<script src="/assets/animations.js"></script>
+<script src="/assets/dark-mode.js"></script>
+<script src="/assets/notifications.js"></script>
+<script src="/assets/quick-actions.js"></script>
+<script src="/assets/keyboard.js"></script>
+<script src="/assets/mobile-nav.js"></script>
 </head>
 <body>
 
@@ -107,19 +114,22 @@
     <div class="tb-av"><i class="fas fa-user-shield"></i></div>
     <div><div class="tb-title">Admin Dashboard</div><div class="tb-sub" id="adName">กำลังโหลด...</div></div>
   </div>
-  <button class="btn-lo" onclick="logout()"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button data-dark-toggle title="โหมดมืด/สว่าง" style="background:rgba(255,255,255,0.2);color:#fff;border:none;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.3s ease;font-size:14px"><i class="fas fa-moon"></i></button>
+    <button class="btn-lo" onclick="logout()"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+  </div>
 </div>
 
 <!-- TABS -->
 <div class="tnw"><div class="tni">
-  <button class="tb2 active" onclick="sw('pay',this)"><i class="fas fa-money-bill-wave"></i> รายการชำระ</button>
-  <button class="tb2" onclick="sw('bill',this);onBillTab()"><i class="fas fa-file-invoice"></i> แจ้งหนี้</button>
-  <button class="tb2" onclick="sw('std',this);loadStudents()"><i class="fas fa-users"></i> นักเรียน</button>
-  <button class="tb2" onclick="sw('cls',this);loadClasses()"><i class="fas fa-chalkboard"></i> ห้องเรียน</button>
-  <button class="tb2" onclick="sw('inq',this);loadInquiries()"><i class="fas fa-comments"></i> คำถาม <span id="inqBadge" style="display:none;background:#EF5350;color:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;margin-left:4px"></span></button>
-  <button class="tb2" onclick="sw('cfg',this);loadSettings()"><i class="fas fa-cog"></i> ตั้งค่า</button>
-  <button class="tb2" onclick="sw('sto',this);loadStorage()"><i class="fas fa-database"></i> พื้นที่</button>
-  <button class="tb2" id="tabAdmins" style="display:none" onclick="sw('adm',this);loadAdmins()"><i class="fas fa-user-shield"></i> ผู้ดูแล</button>
+  <button class="tb2 nav-tab-btn active" onclick="sw('pay',this)"><i class="fas fa-money-bill-wave"></i> รายการชำระ</button>
+  <button class="tb2 nav-tab-btn" onclick="sw('bill',this);onBillTab()"><i class="fas fa-file-invoice"></i> แจ้งหนี้</button>
+  <button class="tb2 nav-tab-btn" onclick="sw('std',this);loadStudents()"><i class="fas fa-users"></i> นักเรียน</button>
+  <button class="tb2 nav-tab-btn" onclick="sw('cls',this);loadClasses()"><i class="fas fa-chalkboard"></i> ห้องเรียน</button>
+  <button class="tb2 nav-tab-btn" onclick="sw('inq',this);loadInquiries()"><i class="fas fa-comments"></i> คำถาม <span id="inqBadge" style="display:none;background:#EF5350;color:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;margin-left:4px"></span></button>
+  <button class="tb2 nav-tab-btn" onclick="sw('cfg',this);loadSettings()"><i class="fas fa-cog"></i> ตั้งค่า</button>
+  <button class="tb2 nav-tab-btn" onclick="sw('sto',this);loadStorage()"><i class="fas fa-database"></i> พื้นที่</button>
+  <button class="tb2 nav-tab-btn" id="tabAdmins" style="display:none" onclick="sw('adm',this);loadAdmins()"><i class="fas fa-user-shield"></i> ผู้ดูแล</button>
 </div></div>
 
 <!-- TAB: PAYMENTS -->
@@ -494,6 +504,11 @@ function sw(id, btn){
   document.querySelectorAll('.tb2').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
+  // เรียก animation helpers
+  if (typeof setActiveTab === 'function') setActiveTab(btn);
+  setTimeout(function(){
+    if (typeof animateStats === 'function' && id === 'pay') animateStats();
+  }, 100);
 }
 
 // ── LOADING ──
@@ -598,6 +613,8 @@ function renderStatsFromSummary(s){
     '<div class="stat"><div class="n">'+((s['ชำระแล้ว']||0)).toLocaleString()+'</div><div class="l">ชำระแล้ว</div></div>'+
     '<div class="stat"><div class="n">'+((s['ชำระไม่สำเร็จ']||0)).toLocaleString()+'</div><div class="l">ไม่ผ่าน</div></div>'+
     '<div class="stat"><div class="n">฿'+Math.round(s.totalAmount||0).toLocaleString()+'</div><div class="l">รวมรับ</div></div>';
+  // animation: count up
+  if (typeof animateStats === 'function') setTimeout(animateStats, 50);
 }
 
 function renderStats(d){
@@ -621,7 +638,16 @@ function renderStats(d){
 function renderPay(d){
   var tb = document.getElementById('payTb');
   if(!d || !d.length){
-    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:30px">ไม่พบรายการ</td></tr>';
+    if (typeof emptyState === 'function') {
+      tb.innerHTML = emptyState({
+        icon: 'fa-inbox',
+        title: 'ไม่พบรายการ',
+        text: 'ลองเปลี่ยน filter หรือคำค้นหา',
+        colspan: 10
+      });
+    } else {
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:30px">ไม่พบรายการ</td></tr>';
+    }
     return;
   }
   var html = '';
@@ -657,6 +683,8 @@ function renderPay(d){
       +'</tr>';
   });
   tb.innerHTML = html;
+  // animation: stagger fade-in
+  if (typeof staggerTableRows === 'function') staggerTableRows('payTb');
 }
 
 function adminViewReceipt(transId){
@@ -1107,7 +1135,14 @@ function statusBadge(status, idType){
 
 function renderStd(d){
   var tb = document.getElementById('stdTb');
-  if(!d.length){ tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">ไม่มีข้อมูล</td></tr>'; return; }
+  if(!d.length){
+    if (typeof emptyState === 'function') {
+      tb.innerHTML = emptyState({ icon:'fa-user-slash', title:'ไม่มีนักเรียน', text:'ลองค้นหาหรือเพิ่มนักเรียน', colspan: 5 });
+    } else {
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:20px">ไม่มีข้อมูล</td></tr>';
+    }
+    return;
+  }
   tb.innerHTML = d.map(function(s){
     var idDisplay = s.idCard;
     var idColor = (s.idType !== 'real') ? 'color:#FF6B35;font-weight:600' : '';
@@ -1125,6 +1160,7 @@ function renderStd(d){
       +'<td>'+act+'</td>'
       +'</tr>';
   }).join('');
+  if (typeof staggerTableRows === 'function') staggerTableRows('stdTb');
 }
 
 function escapeJs(s){ return String(s||'').replace(/'/g, "\\'").replace(/"/g, '\\"'); }
