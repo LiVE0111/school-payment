@@ -183,6 +183,281 @@ module.exports = async function handler(req, res) {
     }
 
     // ─────────────────────────────────────
+    // POST ?action=promote-single → เลื่อนชั้นรายบุคคล (เปลี่ยนห้อง)
+    // body: { idCard, newClass, notes? }
+    // ─────────────────────────────────────
+    if (req.method === 'POST' && action === 'promote-single') {
+      const { idCard, newClass, notes } = req.body || {};
+      if (!idCard) return fail(res, 'กรุณาระบุ idCard');
+      if (!newClass) return fail(res, 'กรุณาระบุ newClass (ห้องใหม่)');
+
+      // ตรวจว่านักเรียนมีจริงไหม
+      const { data: student, error: errStu } = await supabase
+        .from('students')
+        .select('id_card,name,class')
+        .eq('id_card', idCard)
+        .maybeSingle();
+
+      if (errStu) return fail(res, errStu.message, 500);
+      if (!student) return fail(res, 'ไม่พบนักเรียน', 404);
+
+      const oldClass = student.class;
+      if (oldClass === newClass) {
+        return fail(res, 'นักเรียนอยู่ห้อง ' + newClass + ' อยู่แล้ว');
+      }
+
+      // อัปเดตห้อง + เพิ่มหมายเหตุ
+      const noteText = notes || `เลื่อนชั้น ${oldClass} → ${newClass} (${new Date().toLocaleDateString('th-TH')})`;
+      const { error: errUpd } = await supabase
+        .from('students')
+        .update({
+          class: newClass,
+          notes: noteText
+        })
+        .eq('id_card', idCard);
+
+      if (errUpd) return fail(res, errUpd.message, 500);
+
+      // นับบิลค้างชำระเก่า (เพื่อแจ้งเตือน)
+      const { count: pendingCount } = await supabase
+        .from('payments')
+        .select('*', { count: 'exact', head: true })
+        .eq('id_card', idCard)
+        .in('status', ['รอชำระ', 'กำลังตรวจสอบ', 'ชำระไม่สำเร็จ']);
+
+      return ok(res, {
+        message: `เลื่อนชั้น ${student.name}: ${oldClass} → ${newClass}`,
+        student: { idCard: student.id_card, name: student.name, oldClass, newClass },
+        pendingBills: pendingCount || 0,
+        info: pendingCount > 0 ? `⚠️ นักเรียนคนนี้มีบิลค้างชำระเก่า ${pendingCount} รายการ (ยังคงอยู่ในระบบ ผู้ปกครองชำระได้ตามปกติ)` : null
+      });
+    }
+
+    // ─────────────────────────────────────
+    // POST ?action=promote-batch → เลื่อนชั้นทั้งห้อง / ทั้งช่วงชั้น
+    // body: { fromClass, toClass, idCards? (ถ้าไม่ระบุ = ทั้งห้อง) }
+    // หรือ: { promotions: [{ fromClass, toClass }, ...] } (หลายห้องพร้อมกัน)
+    // ─────────────────────────────────────
+    if (req.method === 'POST' && action === 'promote-batch') {
+      const { fromClass, toClass, idCards, promotions, dryRun } = req.body || {};
+
+      // โหมด: หลายห้องพร้อมกัน
+      if (Array.isArray(promotions) && promotions.length > 0) {
+        const results = [];
+        const errors = [];
+        let totalUpdated = 0;
+        let totalPendingBills = 0;
+
+        for (const p of promotions) {
+          if (!p.fromClass || !p.toClass) {
+            errors.push(`${p.fromClass || '?'} → ${p.toClass || '?'}: ข้อมูลไม่ครบ`);
+            continue;
+          }
+
+          // ดึงนักเรียนในห้องเดิม (เฉพาะ active)
+          const { data: studs } = await supabase
+            .from('students')
+            .select('id_card,name')
+            .eq('class', p.fromClass)
+            .neq('status', 'transferred_out')
+            .neq('status', 'graduated');
+
+          const list = studs || [];
+          if (list.length === 0) {
+            results.push({ from: p.fromClass, to: p.toClass, updated: 0, note: 'ไม่มีนักเรียน' });
+            continue;
+          }
+
+          if (dryRun) {
+            results.push({ from: p.fromClass, to: p.toClass, willUpdate: list.length });
+            totalUpdated += list.length;
+            continue;
+          }
+
+          // อัปเดตทั้งห้อง
+          const today = new Date().toLocaleDateString('th-TH');
+          const { error: errUpd } = await supabase
+            .from('students')
+            .update({
+              class: p.toClass,
+              notes: `เลื่อนชั้น ${p.fromClass} → ${p.toClass} (${today})`
+            })
+            .eq('class', p.fromClass)
+            .neq('status', 'transferred_out')
+            .neq('status', 'graduated');
+
+          if (errUpd) {
+            errors.push(`${p.fromClass} → ${p.toClass}: ${errUpd.message}`);
+            continue;
+          }
+
+          // นับบิลค้างของทั้งห้อง
+          const idCardList = list.map(s => s.id_card);
+          const { count: pCount } = await supabase
+            .from('payments')
+            .select('*', { count: 'exact', head: true })
+            .in('id_card', idCardList)
+            .in('status', ['รอชำระ', 'กำลังตรวจสอบ', 'ชำระไม่สำเร็จ']);
+
+          totalPendingBills += (pCount || 0);
+          totalUpdated += list.length;
+          results.push({ from: p.fromClass, to: p.toClass, updated: list.length, pendingBills: pCount || 0 });
+        }
+
+        return ok(res, {
+          dryRun: !!dryRun,
+          totalUpdated,
+          totalPendingBills,
+          results,
+          errors,
+          message: dryRun
+            ? `จะเลื่อน ${totalUpdated} คน ใน ${results.length} ห้อง (ทดสอบ)`
+            : `เลื่อนชั้น ${totalUpdated} คน ใน ${results.length} ห้องเรียบร้อย`
+        });
+      }
+
+      // โหมด: ห้องเดียว
+      if (!fromClass || !toClass) {
+        return fail(res, 'กรุณาระบุ fromClass + toClass หรือ promotions[]');
+      }
+
+      // ดึงนักเรียนในห้องเดิม
+      let query = supabase
+        .from('students')
+        .select('id_card,name')
+        .eq('class', fromClass)
+        .neq('status', 'transferred_out')
+        .neq('status', 'graduated');
+
+      // ถ้าระบุ idCards = เลื่อนเฉพาะคนที่เลือก
+      if (Array.isArray(idCards) && idCards.length > 0) {
+        query = query.in('id_card', idCards);
+      }
+
+      const { data: studs, error: errSel } = await query;
+      if (errSel) return fail(res, errSel.message, 500);
+
+      const list = studs || [];
+      if (list.length === 0) return fail(res, 'ไม่พบนักเรียนในห้อง ' + fromClass);
+
+      // Dry run = แค่ดูว่าจะเลื่อนกี่คน
+      if (dryRun) {
+        const idCardList = list.map(s => s.id_card);
+        const { count: pCount } = await supabase
+          .from('payments')
+          .select('*', { count: 'exact', head: true })
+          .in('id_card', idCardList)
+          .in('status', ['รอชำระ', 'กำลังตรวจสอบ', 'ชำระไม่สำเร็จ']);
+
+        return ok(res, {
+          dryRun: true,
+          willUpdate: list.length,
+          pendingBills: pCount || 0,
+          students: list,
+          message: `จะเลื่อน ${list.length} คน จาก ${fromClass} → ${toClass}`
+        });
+      }
+
+      // อัปเดตจริง
+      const today = new Date().toLocaleDateString('th-TH');
+      const idCardList = list.map(s => s.id_card);
+      const { error: errUpd } = await supabase
+        .from('students')
+        .update({
+          class: toClass,
+          notes: `เลื่อนชั้น ${fromClass} → ${toClass} (${today})`
+        })
+        .in('id_card', idCardList);
+
+      if (errUpd) return fail(res, errUpd.message, 500);
+
+      // นับบิลค้าง
+      const { count: pendingCount } = await supabase
+        .from('payments')
+        .select('*', { count: 'exact', head: true })
+        .in('id_card', idCardList)
+        .in('status', ['รอชำระ', 'กำลังตรวจสอบ', 'ชำระไม่สำเร็จ']);
+
+      return ok(res, {
+        updated: list.length,
+        from: fromClass,
+        to: toClass,
+        pendingBills: pendingCount || 0,
+        message: `เลื่อน ${list.length} คน จาก ${fromClass} → ${toClass} เรียบร้อย`,
+        info: pendingCount > 0
+          ? `⚠️ มีบิลค้างชำระเก่า ${pendingCount} รายการ (ยังคงอยู่ในระบบ ผู้ปกครองชำระได้ตามปกติ)`
+          : null
+      });
+    }
+
+    // ─────────────────────────────────────
+    // POST ?action=graduate → จบการศึกษา (status=graduated)
+    // body: { idCards: [...] } หรือ { fromClass }
+    // ─────────────────────────────────────
+    if (req.method === 'POST' && action === 'graduate') {
+      const { idCards, fromClass } = req.body || {};
+
+      let query = supabase.from('students').update({
+        status: 'graduated',
+        notes: `จบการศึกษา (${new Date().toLocaleDateString('th-TH')})`
+      });
+
+      if (Array.isArray(idCards) && idCards.length > 0) {
+        query = query.in('id_card', idCards);
+      } else if (fromClass) {
+        query = query.eq('class', fromClass);
+      } else {
+        return fail(res, 'กรุณาระบุ idCards หรือ fromClass');
+      }
+
+      const { error } = await query;
+      if (error) return fail(res, error.message, 500);
+
+      return ok(res, { message: 'อัปเดตสถานะเป็น "จบการศึกษา" เรียบร้อย' });
+    }
+
+    // ─────────────────────────────────────
+    // GET ?action=payment-history → ประวัติบิลของนักเรียน (ข้ามปี/เทอม)
+    // ?idCard=...
+    // ─────────────────────────────────────
+    if (req.method === 'GET' && action === 'payment-history') {
+      const idCard = req.query.idCard;
+      if (!idCard) return fail(res, 'กรุณาระบุ idCard');
+
+      const { data: student } = await supabase
+        .from('students')
+        .select('id_card,name,class,student_id,status')
+        .eq('id_card', idCard)
+        .maybeSingle();
+
+      const { data: payments, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('id_card', idCard)
+        .order('year', { ascending: false })
+        .order('term', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) return fail(res, error.message, 500);
+
+      // สรุปสถานะ
+      const summary = { total: 0, paid: 0, pending: 0, failed: 0, pendingAmount: 0, paidAmount: 0 };
+      (payments || []).forEach(p => {
+        summary.total++;
+        const amt = Number(p.amount || 0);
+        if (p.status === 'ชำระแล้ว') { summary.paid++; summary.paidAmount += amt; }
+        else if (p.status === 'รอชำระ' || p.status === 'กำลังตรวจสอบ') { summary.pending++; summary.pendingAmount += amt; }
+        else if (p.status === 'ชำระไม่สำเร็จ') summary.failed++;
+      });
+
+      return ok(res, {
+        student,
+        payments: payments || [],
+        summary
+      });
+    }
+
+    // ─────────────────────────────────────
     // GET → ดึงรายชื่อนักเรียน (รองรับ filter status)
     // ─────────────────────────────────────
     if (req.method === 'GET') {

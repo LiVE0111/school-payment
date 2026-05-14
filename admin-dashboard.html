@@ -228,6 +228,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="bo" onclick="openAddStd()"><i class="fas fa-user-plus"></i> เพิ่ม</button>
           <button class="bo" style="background:linear-gradient(135deg,#1976D2,#0D47A1)" onclick="openLateEnroll()"><i class="fas fa-user-clock"></i> ย้ายเข้ากลางเทอม</button>
+          <button class="bo" style="background:linear-gradient(135deg,#7B1FA2,#4A148C)" onclick="openPromote()"><i class="fas fa-arrow-up"></i> เลื่อนชั้น</button>
           <button class="boo" onclick="openImport()"><i class="fas fa-file-excel"></i> นำเข้า Excel</button>
         </div>
       </div>
@@ -1147,6 +1148,8 @@ function renderStd(d){
     var idDisplay = s.idCard;
     var idColor = (s.idType !== 'real') ? 'color:#FF6B35;font-weight:600' : '';
     var act = '<button class="bic bvw" title="ออกบิลรายบุคคล" onclick="openIndividualBill(\''+s.idCard+'\',\''+escapeJs(s.name)+'\',\''+s.class+'\')"><i class="fas fa-file-invoice"></i></button>';
+    act += '<button class="bic" style="background:#7B1FA2" title="ประวัติบิลทุกปี" onclick="openPaymentHistory(\''+s.idCard+'\')"><i class="fas fa-history"></i></button>';
+    act += '<button class="bic" style="background:#388E3C" title="เลื่อนชั้น" onclick="openPromoteSingle(\''+s.idCard+'\',\''+escapeJs(s.name)+'\',\''+s.class+'\')"><i class="fas fa-arrow-up"></i></button>';
     if (s.idType !== 'real') {
       act += '<button class="bic" style="background:#FF9800" title="อัปเดตเป็นเลขบัตรจริง" onclick="openUpdateId(\''+s.idCard+'\',\''+escapeJs(s.name)+'\')"><i class="fas fa-id-card"></i></button>';
     }
@@ -1376,6 +1379,374 @@ function openUpdateId(oldId, name){
       })
       .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
   });
+}
+
+// ══════════════════════════════
+// PROMOTE — เลื่อนชั้น (รายบุคคล)
+// ══════════════════════════════
+function openPromoteSingle(idCard, name, currentClass){
+  api('/admin/classes').then(function(r){
+    var classes = (r.classes || []).filter(function(c){ return c !== currentClass; });
+    var classOptions = classes.map(function(c){
+      return '<option value="'+c+'">'+c+'</option>';
+    }).join('');
+
+    Swal.fire({
+      title: '<i class="fas fa-arrow-up" style="color:#388E3C"></i> เลื่อนชั้นรายบุคคล',
+      html:
+        '<div style="text-align:left;font-size:.9rem">'
+        + '<div style="background:#F3E5F5;border-left:4px solid #7B1FA2;padding:10px;margin-bottom:14px;border-radius:8px">'
+        + '<div><strong>นักเรียน:</strong> '+name+'</div>'
+        + '<div><strong>ห้องปัจจุบัน:</strong> '+currentClass+'</div>'
+        + '<div><strong>เลขบัตร:</strong> <code>'+idCard+'</code></div>'
+        + '</div>'
+        + '<label style="font-weight:600">เลื่อนไปห้องไหน?</label>'
+        + '<select id="prClass" class="swal2-input" style="width:100%"><option value="">-- เลือกห้องใหม่ --</option>'+classOptions+'</select>'
+        + '<label style="font-weight:600;margin-top:10px;display:block">หมายเหตุ (ออปชั่น)</label>'
+        + '<input id="prNotes" class="swal2-input" placeholder="เช่น เลื่อนชั้นปกติ" style="width:100%">'
+        + '<div style="background:#FFF3E0;padding:10px;border-radius:8px;margin-top:14px;font-size:.85rem;color:#E65100">'
+        + '<strong>💡 หมายเหตุ:</strong> บิลค้างชำระเก่าจะยังอยู่ในระบบ ผู้ปกครองสามารถชำระได้ตามปกติ (ผูกกับเลขบัตร)'
+        + '</div>'
+        + '</div>',
+      width: 500,
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-check"></i> เลื่อนชั้น',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#388E3C',
+      preConfirm: function(){
+        var newClass = document.getElementById('prClass').value;
+        if (!newClass) { Swal.showValidationMessage('เลือกห้องใหม่'); return false; }
+        return {
+          idCard: idCard,
+          newClass: newClass,
+          notes: document.getElementById('prNotes').value.trim()
+        };
+      }
+    }).then(function(r){
+      if (!r.isConfirmed) return;
+      api('/admin/students?action=promote-single', { method:'POST', body: r.value })
+        .then(function(res){
+          var html = res.message;
+          if (res.info) html += '<br><br><div style="background:#FFF3E0;padding:10px;border-radius:8px;font-size:.85rem;color:#E65100">'+res.info+'</div>';
+          Swal.fire({ icon:'success', title:'สำเร็จ!', html: html, confirmButtonColor:'#4CAF50' });
+          loadStudents();
+        })
+        .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+    });
+  });
+}
+
+// ══════════════════════════════
+// PROMOTE — เลื่อนชั้น (Modal เลือกแบบไหน)
+// ══════════════════════════════
+function openPromote(){
+  Swal.fire({
+    title: '<i class="fas fa-arrow-up" style="color:#7B1FA2"></i> เลื่อนชั้นนักเรียน',
+    html:
+      '<div style="text-align:left;font-size:.9rem">'
+      + '<div style="background:#E3F2FD;border-left:4px solid #2196F3;padding:12px;border-radius:8px;margin-bottom:14px">'
+      + '<div style="font-weight:600;color:#0D47A1;margin-bottom:4px">💡 เลือกวิธีเลื่อนชั้น</div>'
+      + '<div style="font-size:.85rem;color:#0D47A1">บิลค้างชำระจะยังอยู่ในระบบ ผู้ปกครองชำระได้ตามปกติ</div>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;gap:10px">'
+      + '<button class="pr-opt" data-mode="batch" style="text-align:left;padding:16px;border:2px solid #E0E0E0;border-radius:12px;background:white;cursor:pointer;font-family:inherit">'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+      + '<div style="width:42px;height:42px;border-radius:50%;background:#4CAF50;color:white;display:flex;align-items:center;justify-content:center"><i class="fas fa-users"></i></div>'
+      + '<div><div style="font-weight:600;color:#333">เลื่อนทั้งห้อง</div><div style="font-size:.8rem;color:#666">เช่น ม.4/1 → ม.5/1 (ทุกคนในห้อง)</div></div>'
+      + '</div></button>'
+      + '<button class="pr-opt" data-mode="all" style="text-align:left;padding:16px;border:2px solid #E0E0E0;border-radius:12px;background:white;cursor:pointer;font-family:inherit">'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+      + '<div style="width:42px;height:42px;border-radius:50%;background:#FF6B35;color:white;display:flex;align-items:center;justify-content:center"><i class="fas fa-school"></i></div>'
+      + '<div><div style="font-weight:600;color:#333">เลื่อนทั้งโรงเรียน (สิ้นปีการศึกษา)</div><div style="font-size:.8rem;color:#666">ม.1→ม.2, ม.2→ม.3 ... อัตโนมัติ</div></div>'
+      + '</div></button>'
+      + '<button class="pr-opt" data-mode="graduate" style="text-align:left;padding:16px;border:2px solid #E0E0E0;border-radius:12px;background:white;cursor:pointer;font-family:inherit">'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+      + '<div style="width:42px;height:42px;border-radius:50%;background:#9C27B0;color:white;display:flex;align-items:center;justify-content:center"><i class="fas fa-graduation-cap"></i></div>'
+      + '<div><div style="font-weight:600;color:#333">จบการศึกษา (ม.6 หรือ ม.3)</div><div style="font-size:.8rem;color:#666">เปลี่ยนสถานะเป็น "จบ"</div></div>'
+      + '</div></button>'
+      + '</div></div>',
+    width: 520,
+    showConfirmButton: false,
+    showCloseButton: true
+  });
+
+  // Bind clicks
+  setTimeout(function(){
+    document.querySelectorAll('.pr-opt').forEach(function(btn){
+      btn.addEventListener('mouseover', function(){ this.style.borderColor = '#FF6B35'; this.style.background = '#FFF8F2'; });
+      btn.addEventListener('mouseout', function(){ this.style.borderColor = '#E0E0E0'; this.style.background = 'white'; });
+      btn.addEventListener('click', function(){
+        var mode = this.getAttribute('data-mode');
+        Swal.close();
+        setTimeout(function(){
+          if (mode === 'batch') openPromoteBatch();
+          else if (mode === 'all') openPromoteAll();
+          else if (mode === 'graduate') openGraduate();
+        }, 200);
+      });
+    });
+  }, 100);
+}
+
+// PROMOTE BATCH — เลื่อนทั้งห้อง
+function openPromoteBatch(){
+  api('/admin/classes').then(function(r){
+    var classes = r.classes || [];
+    var classOptions = classes.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
+
+    Swal.fire({
+      title: '<i class="fas fa-users" style="color:#4CAF50"></i> เลื่อนชั้นทั้งห้อง',
+      html:
+        '<div style="text-align:left;font-size:.9rem">'
+        + '<label style="font-weight:600">จากห้อง (เดิม)</label>'
+        + '<select id="pbFrom" class="swal2-input" style="width:100%"><option value="">-- เลือกห้องเดิม --</option>'+classOptions+'</select>'
+        + '<label style="font-weight:600;margin-top:10px;display:block">ไปห้อง (ใหม่)</label>'
+        + '<select id="pbTo" class="swal2-input" style="width:100%"><option value="">-- เลือกห้องใหม่ --</option>'+classOptions+'</select>'
+        + '<div style="background:#FFF3E0;padding:10px;border-radius:8px;margin-top:14px;font-size:.85rem;color:#E65100">'
+        + '<strong>⚠️ คำเตือน:</strong> ทุกคนในห้องเดิมจะถูกย้ายไปห้องใหม่<br>(ยกเว้นผู้ที่จบ/ย้ายออกแล้ว)'
+        + '</div>'
+        + '</div>',
+      width: 500,
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-search"></i> ตรวจสอบก่อน',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#4CAF50',
+      preConfirm: function(){
+        var from = document.getElementById('pbFrom').value;
+        var to = document.getElementById('pbTo').value;
+        if (!from || !to) { Swal.showValidationMessage('เลือกห้องครบ'); return false; }
+        if (from === to) { Swal.showValidationMessage('ห้องเดิมและใหม่ต้องไม่เหมือนกัน'); return false; }
+        return { fromClass: from, toClass: to };
+      }
+    }).then(function(r){
+      if (!r.isConfirmed) return;
+      // Dry run ก่อน
+      api('/admin/students?action=promote-batch', { method:'POST', body: Object.assign({ dryRun: true }, r.value) })
+        .then(function(dry){
+          Swal.fire({
+            title: 'ยืนยันการเลื่อนชั้น?',
+            html:
+              '<div style="text-align:left">'
+              + '<div style="background:#E3F2FD;padding:14px;border-radius:10px;margin-bottom:10px">'
+              + '<div style="font-size:.9rem">จาก <strong>'+r.value.fromClass+'</strong> → <strong>'+r.value.toClass+'</strong></div>'
+              + '<div style="font-size:1.4rem;font-weight:700;color:#1976D2;margin-top:6px">'+dry.willUpdate+' คน</div>'
+              + '</div>'
+              + (dry.pendingBills > 0 ? '<div style="background:#FFF3E0;padding:10px;border-radius:8px;font-size:.85rem;color:#E65100"><strong>📋 บิลค้างชำระ:</strong> '+dry.pendingBills+' รายการ (จะยังอยู่ในระบบ)</div>' : '')
+              + '</div>',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fas fa-check"></i> ยืนยัน',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#4CAF50'
+          }).then(function(c){
+            if (!c.isConfirmed) return;
+            api('/admin/students?action=promote-batch', { method:'POST', body: r.value })
+              .then(function(res){
+                Swal.fire({ icon:'success', title:'สำเร็จ!', html: res.message + (res.info ? '<br><br><small style="color:#E65100">'+res.info+'</small>' : ''), confirmButtonColor:'#4CAF50' });
+                loadStudents();
+              })
+              .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+          });
+        })
+        .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+    });
+  });
+}
+
+// PROMOTE ALL — เลื่อนทั้งโรงเรียน (สิ้นปีการศึกษา)
+function openPromoteAll(){
+  api('/admin/classes').then(function(r){
+    var classes = r.classes || [];
+
+    // สร้าง promotion plan อัตโนมัติ
+    // ม.1/X → ม.2/X, ม.2/X → ม.3/X, ม.3/X → ม.4/X, ม.4/X → ม.5/X, ม.5/X → ม.6/X
+    var plan = [];
+    classes.forEach(function(c){
+      var m = c.match(/^ม\.(\d+)\/(\d+)$/);
+      if (!m) return;
+      var lvl = parseInt(m[1], 10);
+      var room = m[2];
+      if (lvl >= 1 && lvl <= 5) {
+        var newClass = 'ม.' + (lvl + 1) + '/' + room;
+        // เช็คว่าห้องใหม่มีในระบบไหม
+        if (classes.indexOf(newClass) >= 0) {
+          plan.push({ fromClass: c, toClass: newClass });
+        }
+      }
+    });
+
+    if (plan.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'ไม่พบห้องที่เลื่อนได้', text: 'ระบบไม่พบรูปแบบห้อง ม.X/Y' });
+      return;
+    }
+
+    var planHtml = plan.map(function(p){
+      return '<div style="display:flex;justify-content:space-between;padding:6px 12px;background:#F5F5F5;border-radius:6px;margin-bottom:4px;font-size:.85rem"><span>'+p.fromClass+'</span><span style="color:#FF6B35">→ '+p.toClass+'</span></div>';
+    }).join('');
+
+    Swal.fire({
+      title: '<i class="fas fa-school" style="color:#FF6B35"></i> เลื่อนชั้นทั้งโรงเรียน',
+      html:
+        '<div style="text-align:left;font-size:.9rem">'
+        + '<div style="background:#FFEBEE;border-left:4px solid #F44336;padding:12px;border-radius:8px;margin-bottom:14px">'
+        + '<strong style="color:#C62828">⚠️ คำเตือนสำคัญ!</strong><br>'
+        + '<small style="color:#C62828">ทำเฉพาะตอนสิ้นปีการศึกษา หลังนักเรียนจบเทอม 2 แล้ว</small>'
+        + '</div>'
+        + '<div style="font-weight:600;margin-bottom:8px">แผนการเลื่อนชั้น:</div>'
+        + '<div style="max-height:300px;overflow-y:auto">' + planHtml + '</div>'
+        + '<div style="background:#E3F2FD;padding:10px;border-radius:8px;margin-top:14px;font-size:.8rem;color:#0D47A1">'
+        + '💡 ม.6 จะ<strong>ไม่ถูกเลื่อน</strong> — ใช้ปุ่ม "จบการศึกษา" แทน'
+        + '</div>'
+        + '</div>',
+      width: 540,
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-search"></i> ตรวจสอบก่อน',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#FF6B35'
+    }).then(function(r){
+      if (!r.isConfirmed) return;
+      // Dry run
+      api('/admin/students?action=promote-batch', { method:'POST', body: { promotions: plan, dryRun: true }})
+        .then(function(dry){
+          Swal.fire({
+            title: 'ยืนยันเลื่อนทั้งโรงเรียน?',
+            html:
+              '<div style="text-align:left">'
+              + '<div style="background:#FFEBEE;padding:14px;border-radius:10px;text-align:center">'
+              + '<div style="font-size:.9rem;color:#C62828">จะเลื่อนชั้นนักเรียน</div>'
+              + '<div style="font-size:2.2rem;font-weight:700;color:#C62828">'+dry.totalUpdated+' คน</div>'
+              + '<div style="font-size:.85rem;color:#666">ใน '+(dry.results||[]).length+' ห้อง</div>'
+              + '</div>'
+              + '<div style="font-size:.85rem;color:#666;margin-top:10px;text-align:center">การกระทำนี้ไม่สามารถย้อนกลับได้!</div>'
+              + '</div>',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fas fa-check"></i> ยืนยันเลื่อน',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#FF6B35'
+          }).then(function(c){
+            if (!c.isConfirmed) return;
+            loading(true, 'กำลังเลื่อนชั้น...');
+            api('/admin/students?action=promote-batch', { method:'POST', body: { promotions: plan }})
+              .then(function(res){
+                loading(false);
+                Swal.fire({ icon:'success', title:'สำเร็จ!', html: res.message, confirmButtonColor:'#4CAF50' });
+                loadStudents();
+              })
+              .catch(function(e){ loading(false); Swal.fire('Error', e.message, 'error'); });
+          });
+        })
+        .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+    });
+  });
+}
+
+// GRADUATE — จบการศึกษา
+function openGraduate(){
+  api('/admin/classes').then(function(r){
+    var classes = r.classes || [];
+    var classOptions = classes.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
+
+    Swal.fire({
+      title: '<i class="fas fa-graduation-cap" style="color:#9C27B0"></i> จบการศึกษา',
+      html:
+        '<div style="text-align:left;font-size:.9rem">'
+        + '<label style="font-weight:600">ห้องไหน?</label>'
+        + '<select id="grClass" class="swal2-input" style="width:100%"><option value="">-- เลือกห้อง --</option>'+classOptions+'</select>'
+        + '<div style="background:#F3E5F5;padding:10px;border-radius:8px;margin-top:14px;font-size:.85rem;color:#4A148C">'
+        + '💡 นักเรียนจะถูกเปลี่ยนสถานะเป็น "จบการศึกษา"<br>'
+        + '<small>บิลค้างชำระยังอยู่ในระบบ ผู้ปกครองยังชำระได้</small>'
+        + '</div>'
+        + '</div>',
+      width: 480,
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-graduation-cap"></i> ยืนยันจบ',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#9C27B0',
+      preConfirm: function(){
+        var cls = document.getElementById('grClass').value;
+        if (!cls) { Swal.showValidationMessage('เลือกห้อง'); return false; }
+        return { fromClass: cls };
+      }
+    }).then(function(r){
+      if (!r.isConfirmed) return;
+      api('/admin/students?action=graduate', { method:'POST', body: r.value })
+        .then(function(res){
+          Swal.fire({ icon:'success', title:'สำเร็จ!', text: res.message, confirmButtonColor:'#4CAF50' });
+          loadStudents();
+        })
+        .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+    });
+  });
+}
+
+// ══════════════════════════════
+// PAYMENT HISTORY — ประวัติบิลทุกปี
+// ══════════════════════════════
+function openPaymentHistory(idCard){
+  loading(true, 'กำลังโหลดประวัติ...');
+  api('/admin/students?action=payment-history&idCard=' + encodeURIComponent(idCard))
+    .then(function(r){
+      loading(false);
+      var s = r.student || {};
+      var summary = r.summary || {};
+      var payments = r.payments || [];
+
+      // จัดกลุ่มตามปี
+      var grouped = {};
+      payments.forEach(function(p){
+        var key = (p.year || '?') + '/เทอม' + (p.term || '?');
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(p);
+      });
+
+      var historyHtml = '';
+      Object.keys(grouped).forEach(function(key){
+        var items = grouped[key];
+        historyHtml += '<div style="margin-bottom:14px"><div style="font-weight:600;color:#FF6B35;margin-bottom:6px;font-size:.95rem">📅 ปีการศึกษา '+key+'</div>';
+        items.forEach(function(p){
+          var statusColor = p.status === 'ชำระแล้ว' ? '#4CAF50'
+            : (p.status === 'รอชำระ' ? '#FF9800'
+            : (p.status === 'กำลังตรวจสอบ' ? '#2196F3' : '#F44336'));
+          historyHtml += '<div style="background:white;border:1px solid #F0E8DD;padding:10px 12px;border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:.85rem">'
+            + '<div>'
+            +   '<div style="font-weight:500">'+(p.title || 'ค่าบำรุงการศึกษา')+'</div>'
+            +   '<div style="color:#999;font-size:.75rem">'+(p.bill_type === 'individual' ? '👤 รายบุคคล' : (p.bill_type === 'late_enrollment' ? '🆕 ย้ายเข้า' : '📋 ออกหมู่'))+'</div>'
+            + '</div>'
+            + '<div style="text-align:right">'
+            +   '<div style="font-weight:700">฿' + Number(p.amount || 0).toLocaleString() + '</div>'
+            +   '<div style="background:'+statusColor+'22;color:'+statusColor+';padding:2px 10px;border-radius:100px;font-size:.7rem;font-weight:600;display:inline-block">'+p.status+'</div>'
+            + '</div>'
+            + '</div>';
+        });
+        historyHtml += '</div>';
+      });
+
+      if (!historyHtml) historyHtml = '<div style="text-align:center;color:#999;padding:30px">ไม่มีประวัติการชำระ</div>';
+
+      Swal.fire({
+        title: '<i class="fas fa-history" style="color:#7B1FA2"></i> ประวัติการชำระเงิน',
+        html:
+          '<div style="text-align:left;font-size:.9rem">'
+          + '<div style="background:linear-gradient(135deg,#F3E5F5,#fff);padding:14px;border-radius:12px;margin-bottom:14px">'
+          + '<div><strong>นักเรียน:</strong> '+(s.name||'-')+'</div>'
+          + '<div><strong>ห้องปัจจุบัน:</strong> '+(s.class||'-')+'</div>'
+          + '<div><strong>เลขบัตร:</strong> <code>'+idCard+'</code></div>'
+          + '</div>'
+          + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px">'
+          + '<div style="background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #2196F3"><div style="font-size:.75rem;color:#666">ทั้งหมด</div><div style="font-weight:700;font-size:1.2rem">'+summary.total+'</div></div>'
+          + '<div style="background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #4CAF50"><div style="font-size:.75rem;color:#666">ชำระแล้ว</div><div style="font-weight:700;font-size:1.2rem;color:#2E7D32">'+summary.paid+'</div></div>'
+          + '<div style="background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #FF9800"><div style="font-size:.75rem;color:#666">ค้างชำระ</div><div style="font-weight:700;font-size:1.2rem;color:#F57C00">'+summary.pending+'</div></div>'
+          + '<div style="background:#fff;padding:10px;border-radius:8px;text-align:center;border-top:3px solid #9C27B0"><div style="font-size:.75rem;color:#666">ยอดค้าง</div><div style="font-weight:700;font-size:1.1rem;color:#6A1B9A">฿'+(summary.pendingAmount||0).toLocaleString()+'</div></div>'
+          + '</div>'
+          + '<div style="max-height:400px;overflow-y:auto">'+historyHtml+'</div>'
+          + '</div>',
+        width: 600,
+        showCloseButton: true,
+        showConfirmButton: false
+      });
+    })
+    .catch(function(e){ loading(false); Swal.fire('Error', e.message, 'error'); });
 }
 
 function doDelStd(id){
