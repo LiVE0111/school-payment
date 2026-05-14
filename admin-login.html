@@ -1,68 +1,140 @@
--- ════════════════════════════════════════════════════════════
--- School Payment System - Migration v13
--- 1. รองรับ flexible ID (G-code, TEMP) สำหรับนักเรียนยังไม่มีบัตร
--- 2. Late enrollment (ย้ายเข้ากลางเทอม)
--- 3. Performance indexes สำหรับ 1500+ records
--- ════════════════════════════════════════════════════════════
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>เข้าสู่ระบบ | เจ้าหน้าที่</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--o1:#FF6B35;--o2:#E53935;--grad:linear-gradient(145deg,#FF9A5C 0%,#FF5722 50%,#E53935 100%)}
+    html,body{min-height:100%;width:100%;font-family:'Prompt',sans-serif;background:#FFF8F5;overflow-x:hidden}
+    body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;position:relative}
+    .blob{position:fixed;border-radius:50%;filter:blur(80px);opacity:.3;pointer-events:none;z-index:0}
+    .b1{width:360px;height:360px;background:#FF9A5C;top:-120px;right:-80px}
+    .b2{width:280px;height:280px;background:#FFD54F;bottom:-100px;left:-80px}
+    .card{background:#fff;border-radius:28px;box-shadow:0 24px 64px rgba(255,87,34,.16);
+          width:100%;max-width:400px;overflow:hidden;position:relative;z-index:2;
+          animation:cardIn .5s cubic-bezier(.34,1.28,.64,1) both}
+    @keyframes cardIn{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:none}}
+    .card-top{background:var(--grad);padding:32px 24px 28px;text-align:center;position:relative;overflow:hidden}
+    .avatar{width:72px;height:72px;background:rgba(255,255,255,.22);border:3px solid rgba(255,255,255,.45);
+            border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;
+            font-size:1.8rem;color:#fff}
+    .card-top h2{color:#fff;font-size:1.2rem;font-weight:700}
+    .card-top p{color:rgba(255,255,255,.75);font-size:.82rem;margin-top:4px}
+    .card-body{padding:28px 24px 24px}
+    .fg{margin-bottom:18px}
+    .fg label{display:block;font-size:.8rem;font-weight:600;color:#6b7280;margin-bottom:7px}
+    .iw{position:relative}
+    .iw .ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#c5c5c5;font-size:.9rem;pointer-events:none}
+    .fi{width:100%;border:2px solid #f0f0f0;border-radius:14px;padding:13px 14px 13px 42px;
+        font-family:'Prompt',sans-serif;font-size:.95rem;color:#1a1a2e;outline:none;background:#FAFAFA}
+    .fi:focus{border-color:var(--o1);background:#fff;box-shadow:0 0 0 4px rgba(255,107,53,.1)}
+    .eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#c5c5c5;font-size:.9rem}
+    .fi.he{padding-right:42px}
+    .btn-login{width:100%;background:var(--grad);color:#fff;border:none;border-radius:14px;padding:15px;
+               font-family:'Prompt',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;
+               box-shadow:0 8px 24px rgba(255,87,34,.32);display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
+    .btn-login:disabled{opacity:.65;cursor:not-allowed}
+    .divider{display:flex;align-items:center;gap:12px;margin:20px 0 16px}
+    .divider span{height:1px;flex:1;background:#f0f0f0}
+    .divider p{font-size:.75rem;color:#c5c5c5}
+    .btn-back{width:100%;background:#f9f9f9;color:#888;border:1.5px solid #f0f0f0;border-radius:14px;
+              padding:13px;font-family:'Prompt',sans-serif;font-size:.88rem;font-weight:500;cursor:pointer;
+              display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+    .shake{animation:shake .4s ease}
+  </style>
+<link rel="stylesheet" href="/assets/animations.css">
+<script src="/assets/animations.js"></script>
+<script src="/assets/dark-mode.js"></script>
+</head>
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="card">
+    <div class="card-top">
+      <div class="avatar"><i class="fas fa-user-shield"></i></div>
+      <h2>Admin Login</h2>
+      <p>เข้าสู่ระบบเจ้าหน้าที่</p>
+    </div>
+    <div class="card-body">
+      <div class="fg">
+        <label><i class="fas fa-user"></i> ชื่อผู้ใช้</label>
+        <div class="iw">
+          <i class="ic fas fa-at"></i>
+          <input type="text" id="user" class="fi" placeholder="Username" autocomplete="username">
+        </div>
+      </div>
+      <div class="fg">
+        <label><i class="fas fa-lock"></i> รหัสผ่าน</label>
+        <div class="iw">
+          <i class="ic fas fa-key"></i>
+          <input type="password" id="pass" class="fi he" placeholder="Password" autocomplete="current-password">
+          <button type="button" class="eye" onclick="toggleEye()"><i class="fas fa-eye" id="eyeIco"></i></button>
+        </div>
+      </div>
+      <button class="btn-login" id="btnLogin" onclick="doLogin()">
+        <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
+      </button>
+      <div class="divider"><span></span><p>หรือ</p><span></span></div>
+      <a class="btn-back" href="/"><i class="fas fa-arrow-left"></i> กลับหน้าหลัก</a>
+    </div>
+  </div>
 
--- ── 1. Students: รองรับสถานะและ late enrollment ──
-ALTER TABLE students ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
--- 'active' / 'pending_id' (รอบัตร) / 'transferred_in' / 'transferred_out' / 'graduated'
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="/app.js"></script>
+  <script>
+    // ถ้ามี token แล้ว → ไป dashboard เลย
+    if(localStorage.getItem('adminToken')){
+      window.location.href = '/admin-dashboard';
+    }
 
-ALTER TABLE students ADD COLUMN IF NOT EXISTS enrolled_at TIMESTAMPTZ DEFAULT now();
-ALTER TABLE students ADD COLUMN IF NOT EXISTS notes TEXT;
+    document.getElementById('user').addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('pass').focus(); });
+    document.getElementById('pass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 
-CREATE INDEX IF NOT EXISTS idx_students_status ON students(status);
-CREATE INDEX IF NOT EXISTS idx_students_class ON students(class);
-CREATE INDEX IF NOT EXISTS idx_students_name_trgm ON students USING gin(name gin_trgm_ops);
+    function toggleEye(){
+      var p = document.getElementById('pass');
+      var i = document.getElementById('eyeIco');
+      p.type = p.type==='password' ? 'text' : 'password';
+      i.className = p.type==='password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    }
 
--- ⚠️ ติดตั้ง pg_trgm extension ก่อน (ใน Supabase ติดตั้งให้แล้ว)
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    function shake(){
+      var c = document.querySelector('.card');
+      c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+    }
 
--- ── 2. Payments: เพิ่ม bill_type + indexes ──
-ALTER TABLE payments ADD COLUMN IF NOT EXISTS bill_type TEXT DEFAULT 'batch';
--- 'batch' (ออกหมู่) / 'individual' (รายบุคคล) / 'late_enrollment' (ย้ายเข้า)
+    function doLogin(){
+      var u   = document.getElementById('user').value.trim();
+      var p   = document.getElementById('pass').value;
+      var btn = document.getElementById('btnLogin');
+      if(!u || !p){
+        shake();
+        Swal.fire({icon:'warning',text:'กรุณากรอก Username และ Password',toast:true,position:'top',timer:2000,showConfirmButton:false});
+        return;
+      }
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
 
-CREATE INDEX IF NOT EXISTS idx_payments_bill_type ON payments(bill_type);
-CREATE INDEX IF NOT EXISTS idx_payments_id_card_status ON payments(id_card, status);
-CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
-CREATE INDEX IF NOT EXISTS idx_payments_year_term ON payments(year, term);
-
--- ── 3. Storage tracking ──
-CREATE TABLE IF NOT EXISTS storage_stats (
-  id INTEGER PRIMARY KEY DEFAULT 1,
-  total_db_size BIGINT DEFAULT 0,
-  total_storage_size BIGINT DEFAULT 0,
-  total_slip_count INTEGER DEFAULT 0,
-  total_payment_rows INTEGER DEFAULT 0,
-  total_student_rows INTEGER DEFAULT 0,
-  last_updated TIMESTAMPTZ DEFAULT now(),
-  CONSTRAINT single_row_storage CHECK (id = 1)
-);
-
-INSERT INTO storage_stats (id) VALUES (1) ON CONFLICT DO NOTHING;
-ALTER TABLE storage_stats DISABLE ROW LEVEL SECURITY;
-
--- ── 4. Function: get database size ──
-CREATE OR REPLACE FUNCTION get_db_stats()
-RETURNS TABLE (
-  table_name TEXT,
-  row_count BIGINT,
-  total_size_bytes BIGINT
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT
-    schemaname || '.' || relname AS table_name,
-    n_live_tup AS row_count,
-    pg_total_relation_size(schemaname || '.' || relname) AS total_size_bytes
-  FROM pg_stat_user_tables
-  WHERE schemaname = 'public'
-  ORDER BY pg_total_relation_size(schemaname || '.' || relname) DESC;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION get_db_stats() TO anon, authenticated, service_role;
+      api('/auth?action=login', { method:'POST', body:{ username:u, password:p } })
+        .then(function(res){
+          localStorage.setItem('adminToken',    res.token);
+          localStorage.setItem('adminName',     res.name);
+          localStorage.setItem('adminRole',     res.role || 'admin');
+          localStorage.setItem('adminUsername', res.username);
+          btn.innerHTML = '<i class="fas fa-check"></i> เข้าสู่ระบบสำเร็จ';
+          window.location.href = '/admin-dashboard';
+        })
+        .catch(function(e){
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ';
+          shake();
+          Swal.fire({icon:'error',title:'เข้าสู่ระบบไม่สำเร็จ',text: e.message || 'Username หรือ Password ไม่ถูกต้อง',confirmButtonColor:'#FF6B35'});
+        });
+    }
+  </script>
+</body>
+</html>
