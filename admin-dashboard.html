@@ -1226,7 +1226,8 @@ function renderStd(d){
   tb.innerHTML = d.map(function(s){
     var idDisplay = s.idCard;
     var idColor = (s.idType !== 'real') ? 'color:#FF6B35;font-weight:600' : '';
-    var act = '<button class="bic bvw" title="ออกบิลรายบุคคล" onclick="openIndividualBill(\''+s.idCard+'\',\''+escapeJs(s.name)+'\',\''+s.class+'\')"><i class="fas fa-file-invoice"></i></button>';
+    var act = '<button class="bic" style="background:#2196F3" title="แก้ไขข้อมูล" onclick="openEditStudent(\''+s.idCard+'\')"><i class="fas fa-edit"></i></button>';
+    act += '<button class="bic bvw" title="ออกบิลรายบุคคล" onclick="openIndividualBill(\''+s.idCard+'\',\''+escapeJs(s.name)+'\',\''+s.class+'\')"><i class="fas fa-file-invoice"></i></button>';
     act += '<button class="bic" style="background:#7B1FA2" title="ประวัติบิลทุกปี" onclick="openPaymentHistory(\''+s.idCard+'\')"><i class="fas fa-history"></i></button>';
     act += '<button class="bic" style="background:#388E3C" title="เลื่อนชั้น" onclick="openPromoteSingle(\''+s.idCard+'\',\''+escapeJs(s.name)+'\',\''+s.class+'\')"><i class="fas fa-arrow-up"></i></button>';
     if (s.idType !== 'real') {
@@ -1463,6 +1464,153 @@ function openUpdateId(oldId, name){
 // ══════════════════════════════
 // PROMOTE — เลื่อนชั้น (รายบุคคล)
 // ══════════════════════════════
+// ══════════════════════════════
+// EDIT STUDENT — แก้ไขข้อมูลนักเรียน
+// ══════════════════════════════
+function openEditStudent(idCard){
+  // หาข้อมูลปัจจุบัน
+  var stu = (allStudents || []).find(function(s){ return s.idCard === idCard; });
+  if (!stu) {
+    Swal.fire('Error', 'ไม่พบนักเรียน', 'error');
+    return;
+  }
+
+  // โหลดห้องเรียน
+  api('/admin/classes').then(function(r){
+    var classes = r.classes || [];
+    var classOptions = classes.map(function(c){
+      var selected = (c === stu.class) ? 'selected' : '';
+      return '<option value="'+c+'" '+selected+'>'+c+'</option>';
+    }).join('');
+
+    var statusOptions = [
+      { v:'active', label:'✅ ปกติ' },
+      { v:'pending_id', label:'⚠️ รอเลขบัตรจริง' },
+      { v:'transferred_in', label:'🆕 ย้ายเข้า' },
+      { v:'transferred_out', label:'📤 ย้ายออก' },
+      { v:'graduated', label:'🎓 จบ' }
+    ].map(function(o){
+      var sel = (o.v === stu.status) ? 'selected' : '';
+      return '<option value="'+o.v+'" '+sel+'>'+o.label+'</option>';
+    }).join('');
+
+    Swal.fire({
+      title: '<i class="fas fa-user-edit" style="color:#2196F3"></i> แก้ไขข้อมูลนักเรียน',
+      html:
+        '<div style="text-align:left;font-size:.9rem">'
+        + '<div style="background:#E3F2FD;border-left:4px solid #2196F3;padding:10px;border-radius:8px;margin-bottom:14px;font-size:.85rem">'
+        +   '<strong>💡 หมายเหตุ:</strong><br>'
+        +   '• หากแก้เลขบัตร — ระบบจะอัปเดตบิลทั้งหมดที่ผูกกับเลขบัตรเดิมให้อัตโนมัติ<br>'
+        +   '• ใช้กรณีบัตรประชาชนผิด หรือชื่อสะกดผิด'
+        + '</div>'
+
+        + '<label style="font-weight:600;display:block;margin-top:8px">เลขบัตรประชาชน <span style="color:#F44336">*</span></label>'
+        + '<input id="edId" class="swal2-input" value="'+stu.idCard+'" placeholder="13 หลัก, G+12 หลัก หรือ TEMP-XXXXXX" style="width:100%;font-family:Consolas,monospace">'
+        + '<div style="font-size:.75rem;color:#888;margin-top:2px">⚠️ ถ้าเปลี่ยน — ระบบจะอัปเดตบิลด้วย</div>'
+
+        + '<label style="font-weight:600;display:block;margin-top:10px">รหัสนักเรียน</label>'
+        + '<input id="edSID" class="swal2-input" value="'+(stu.studentId||'')+'" placeholder="เช่น 15285" style="width:100%">'
+
+        + '<label style="font-weight:600;display:block;margin-top:10px">ชื่อ-นามสกุล <span style="color:#F44336">*</span></label>'
+        + '<input id="edName" class="swal2-input" value="'+escapeJs(stu.name||'')+'" placeholder="เด็กชาย..." style="width:100%">'
+
+        + '<label style="font-weight:600;display:block;margin-top:10px">ห้องเรียน</label>'
+        + '<select id="edClass" class="swal2-input" style="width:100%">'+classOptions+'</select>'
+
+        + '<label style="font-weight:600;display:block;margin-top:10px">สถานะ</label>'
+        + '<select id="edStatus" class="swal2-input" style="width:100%">'+statusOptions+'</select>'
+
+        + '<label style="font-weight:600;display:block;margin-top:10px">URL รูปภาพ (ออปชั่น)</label>'
+        + '<input id="edImg" class="swal2-input" value="'+(stu.imageUrl||'')+'" placeholder="https://..." style="width:100%">'
+
+        + '<label style="font-weight:600;display:block;margin-top:10px">หมายเหตุ (ออปชั่น)</label>'
+        + '<input id="edNotes" class="swal2-input" value="'+escapeJs(stu.notes||'')+'" placeholder="เช่น เด็กรอบัตร" style="width:100%">'
+
+        + '</div>',
+      width: 540,
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-save"></i> บันทึก',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#2196F3',
+      preConfirm: function(){
+        var newId = document.getElementById('edId').value.trim();
+        var name = document.getElementById('edName').value.trim();
+        if (!newId) { Swal.showValidationMessage('กรอกเลขบัตร'); return false; }
+        if (!name) { Swal.showValidationMessage('กรอกชื่อ'); return false; }
+
+        // ตรวจ format ID
+        var validReal = /^\d{13}$/.test(newId);
+        var validG = /^G\d{12}$/i.test(newId);
+        var validTemp = /^TEMP-\d{6,}$/i.test(newId);
+        if (!validReal && !validG && !validTemp) {
+          Swal.showValidationMessage('ID ต้องเป็น: 13 หลัก / G+12 หลัก / TEMP-XXXXXX');
+          return false;
+        }
+
+        return {
+          originalIdCard: stu.idCard,
+          newIdCard: newId,
+          studentId: document.getElementById('edSID').value.trim(),
+          name: name,
+          class: document.getElementById('edClass').value,
+          status: document.getElementById('edStatus').value,
+          imageUrl: document.getElementById('edImg').value.trim(),
+          notes: document.getElementById('edNotes').value.trim()
+        };
+      }
+    }).then(function(r){
+      if (!r.isConfirmed) return;
+
+      var idChanged = (r.value.newIdCard !== r.value.originalIdCard);
+
+      // ถ้าเปลี่ยนเลขบัตร — confirm อีกที (อันตราย)
+      var doSave = function(){
+        api('/admin/students?action=full-edit', { method:'POST', body: r.value })
+          .then(function(res){
+            var nm = adminName || 'Admin';
+            Swal.fire({
+              icon:'success',
+              title:'แก้ไขสำเร็จ!',
+              html: res.message + '<br><br><div style="font-size:.85rem;color:#666"><i class="fas fa-user-check" style="color:#2196F3"></i> โดย <strong>'+nm+'</strong></div>',
+              confirmButtonColor:'#2196F3'
+            });
+            loadStudents();
+          })
+          .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
+      };
+
+      if (idChanged) {
+        Swal.fire({
+          title: 'ยืนยันการเปลี่ยนเลขบัตร?',
+          html:
+            '<div style="text-align:left">'
+            + '<div style="background:#FFF3E0;padding:12px;border-radius:10px;margin-bottom:10px">'
+            +   '<div style="font-size:.85rem;color:#E65100;margin-bottom:6px"><strong>⚠️ การเปลี่ยนเลขบัตรจะ:</strong></div>'
+            +   '<div style="font-size:.85rem;color:#E65100">• อัปเดตเลขบัตรในตาราง students</div>'
+            +   '<div style="font-size:.85rem;color:#E65100">• อัปเดตบิลทุกใบที่ผูกกับเลขบัตรเดิม</div>'
+            +   '<div style="font-size:.85rem;color:#E65100">• อัปเดต Ref.1 ใน QR Code ใหม่ทุกบิล</div>'
+            + '</div>'
+            + '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:#F5F5F5;border-radius:8px">'
+            +   '<code style="background:#fff;padding:6px 10px;border-radius:6px;font-size:.85rem">'+r.value.originalIdCard+'</code>'
+            +   '<i class="fas fa-arrow-right" style="color:#FF6B35"></i>'
+            +   '<code style="background:#fff;padding:6px 10px;border-radius:6px;font-size:.85rem;color:#2196F3;font-weight:600">'+r.value.newIdCard+'</code>'
+            + '</div>'
+            + '</div>',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: '<i class="fas fa-check"></i> ยืนยันเปลี่ยน',
+          cancelButtonText: 'ยกเลิก',
+          confirmButtonColor: '#FF6B35'
+        }).then(function(c){
+          if (c.isConfirmed) doSave();
+        });
+      } else {
+        doSave();
+      }
+    });
+  });
+}
+
 function openPromoteSingle(idCard, name, currentClass){
   api('/admin/classes').then(function(r){
     var classes = (r.classes || []).filter(function(c){ return c !== currentClass; });

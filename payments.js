@@ -584,6 +584,124 @@ module.exports = async function handler(req, res) {
     }
 
     // ─────────────────────────────────────
+    // POST ?action=full-edit → แก้ไขข้อมูลครบ (รวมถึงเปลี่ยนเลขบัตรได้)
+    // body: { originalIdCard, newIdCard?, studentId?, name?, class?, imageUrl?, status?, notes? }
+    // ─────────────────────────────────────
+    if (req.method === 'POST' && action === 'full-edit') {
+      const body = req.body || {};
+      const originalIdCard = String(body.originalIdCard || '').trim();
+      if (!originalIdCard) return fail(res, 'กรุณาระบุ originalIdCard');
+
+      // ตรวจว่ามีนักเรียนคนนี้ไหม
+      const { data: existing, error: errFind } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id_card', originalIdCard)
+        .maybeSingle();
+
+      if (errFind) return fail(res, errFind.message, 500);
+      if (!existing) return fail(res, 'ไม่พบนักเรียนใน ID นี้', 404);
+
+      const newIdCard = body.newIdCard !== undefined ? String(body.newIdCard).trim() : originalIdCard;
+      const isIdCardChange = newIdCard !== originalIdCard;
+
+      // กรณีเปลี่ยน ID — ต้องตรวจ format + ความซ้ำ
+      if (isIdCardChange) {
+        const validation = validateIdCard(newIdCard);
+        if (!validation.valid) return fail(res, 'ID ใหม่: ' + validation.error);
+
+        // เช็คว่า ID ใหม่ไม่ซ้ำ
+        const { data: dup } = await supabase
+          .from('students')
+          .select('id_card')
+          .eq('id_card', newIdCard)
+          .maybeSingle();
+        if (dup) return fail(res, `ID ${newIdCard} มีในระบบอยู่แล้ว`);
+      }
+
+      // เตรียม updates
+      const updates = {};
+      if (body.studentId !== undefined) updates.student_id = String(body.studentId).trim();
+      if (body.name !== undefined) updates.name = String(body.name).trim();
+      if (body.class !== undefined) updates.class = String(body.class).trim();
+      if (body.imageUrl !== undefined) updates.image_url = String(body.imageUrl).trim();
+      if (body.status !== undefined) updates.status = body.status;
+      if (body.notes !== undefined) updates.notes = body.notes;
+      if (isIdCardChange) updates.id_card = newIdCard;
+
+      // ถ้าไม่มีอะไรเปลี่ยนเลย
+      if (Object.keys(updates).length === 0) {
+        return fail(res, 'ไม่มีข้อมูลให้แก้ไข');
+      }
+
+      // อัปเดต students
+      const { error: errStu } = await supabase
+        .from('students')
+        .update(updates)
+        .eq('id_card', originalIdCard);
+
+      if (errStu) return fail(res, 'แก้ไข students ไม่สำเร็จ: ' + errStu.message, 500);
+
+      // ถ้าเปลี่ยน id_card → ต้องอัปเดต payments + activity_logs ด้วย
+      let paymentsUpdated = 0;
+      if (isIdCardChange) {
+        // นับก่อนอัปเดต
+        const { count } = await supabase
+          .from('payments')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_card', originalIdCard);
+        paymentsUpdated = count || 0;
+
+        // ตรวจว่า newIdCard เป็นเลขบัตรจริงไหม — ถ้าใช่ ให้ใส่ใน ref1 ด้วย
+        const isRealNewId = /^\d{13}$/.test(newIdCard);
+
+        const payUpdates = { id_card: newIdCard };
+        if (isRealNewId) payUpdates.ref1 = newIdCard;
+
+        const { error: errPay } = await supabase
+          .from('payments')
+          .update(payUpdates)
+          .eq('id_card', originalIdCard);
+
+        if (errPay) {
+          return fail(res, 'students อัปเดตแล้ว แต่ payments error: ' + errPay.message, 500);
+        }
+
+        // activity_logs (ถ้ามีตาราง)
+        try {
+          await supabase.from('activity_logs').insert({
+            admin_username: user.username || 'admin',
+            action: 'edit_student_id',
+            target_type: 'student',
+            target_id: newIdCard,
+            details: { from: originalIdCard, to: newIdCard, paymentsAffected: paymentsUpdated }
+          });
+        } catch(e) {}
+      } else {
+        // ปกติ — แค่ log การแก้ไข
+        try {
+          await supabase.from('activity_logs').insert({
+            admin_username: user.username || 'admin',
+            action: 'edit_student',
+            target_type: 'student',
+            target_id: originalIdCard,
+            details: { updates }
+          });
+        } catch(e) {}
+      }
+
+      return ok(res, {
+        message: isIdCardChange
+          ? `แก้ไขสำเร็จ! ID เปลี่ยน ${originalIdCard} → ${newIdCard} (อัปเดตบิล ${paymentsUpdated} รายการ)`
+          : 'แก้ไขข้อมูลสำเร็จ',
+        idCardChanged: isIdCardChange,
+        oldIdCard: originalIdCard,
+        newIdCard: isIdCardChange ? newIdCard : null,
+        paymentsAffected: paymentsUpdated
+      });
+    }
+
+    // ─────────────────────────────────────
     // DELETE
     // ─────────────────────────────────────
     if (req.method === 'DELETE') {
