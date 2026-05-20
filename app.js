@@ -4,8 +4,8 @@
 // (ANON KEY ปลอดภัย ใช้บน frontend ได้ เพราะถูก lock ด้วย RLS/policy)
 //
 // ⚠️ สำคัญ: ก่อน deploy แก้ค่าด้านล่างให้ตรงกับ project ของคุณ
-window.SUPABASE_URL  = window.SUPABASE_URL  || 'https://YOUR-PROJECT.supabase.co';
-window.SUPABASE_ANON = window.SUPABASE_ANON || 'YOUR_ANON_KEY';
+window.SUPABASE_URL  = window.SUPABASE_URL  || 'https://fpeizvycjwfqnccapnuu.supabase.co';
+window.SUPABASE_ANON = window.SUPABASE_ANON || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwZWl6dnljandmcW5jY2FwbnV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NDM0MjAsImV4cCI6MjA5MzQxOTQyMH0.IoGs7Zcz23BkRoIlFsZ6GJ0o3Z890c2RI58_pZ3ys58';
 
 // Sanitize URL: ลบ trailing slash + path ที่ไม่ควรมี
 (function () {
