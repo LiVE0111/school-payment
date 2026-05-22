@@ -129,7 +129,9 @@
   <button class="tb2 nav-tab-btn" onclick="sw('inq',this);loadInquiries()"><i class="fas fa-comments"></i> คำถาม <span id="inqBadge" style="display:none;background:#EF5350;color:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;margin-left:4px"></span></button>
   <button class="tb2 nav-tab-btn" onclick="sw('cfg',this);loadSettings()"><i class="fas fa-cog"></i> ตั้งค่า</button>
   <button class="tb2 nav-tab-btn" onclick="sw('sto',this);loadStorage()"><i class="fas fa-database"></i> พื้นที่</button>
+  <button class="tb2 nav-tab-btn" id="tabAudit" style="display:none" onclick="sw('aud',this);loadAuditLog()"><i class="fas fa-scroll"></i> Audit Log</button>
   <button class="tb2 nav-tab-btn" id="tabAdmins" style="display:none" onclick="sw('adm',this);loadAdmins()"><i class="fas fa-user-shield"></i> ผู้ดูแล</button>
+  <button class="tb2 nav-tab-btn" id="tabHomeroom" style="display:none" onclick="sw('hr',this);loadHomeroom()"><i class="fas fa-chalkboard-teacher"></i> ภาพรวมห้องของฉัน</button>
 </div></div>
 
 <!-- TAB: PAYMENTS -->
@@ -400,6 +402,55 @@
         <thead><tr><th>Username</th><th>ชื่อ</th><th>สิทธิ์</th><th>วันที่สร้าง</th><th>จัดการ</th></tr></thead>
         <tbody id="admTb"></tbody>
       </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: AUDIT LOG -->
+<div class="tp" id="tab-aud">
+  <div class="pg">
+    <div class="co cot">
+      <div class="st"><i class="fas fa-scroll"></i> ประวัติการใช้งานระบบ (Audit Log)</div>
+      <div style="font-size:.85rem;color:#666;margin-bottom:14px">
+        <i class="fas fa-info-circle"></i> บันทึกการกระทำของ admin ทุกคน เช่น อนุมัติ ปฏิเสธ แก้ไข ลบ
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <select id="auFAdmin" class="fco" style="max-width:180px" onchange="loadAuditLog(true)">
+          <option value="ALL">ผู้ใช้ทั้งหมด</option>
+        </select>
+        <select id="auFAction" class="fco" style="max-width:180px" onchange="loadAuditLog(true)">
+          <option value="ALL">ทุก action</option>
+        </select>
+        <input type="date" id="auFFrom" class="fco" style="max-width:160px" onchange="loadAuditLog(true)" title="ตั้งแต่วันที่">
+        <input type="date" id="auFTo" class="fco" style="max-width:160px" onchange="loadAuditLog(true)" title="ถึงวันที่">
+        <button class="bo" onclick="loadAuditLog(true)"><i class="fas fa-search"></i> ค้นหา</button>
+        <button class="boo" onclick="document.getElementById('auFAdmin').value='ALL';document.getElementById('auFAction').value='ALL';document.getElementById('auFFrom').value='';document.getElementById('auFTo').value='';loadAuditLog(true)"><i class="fas fa-times"></i> ล้าง</button>
+      </div>
+
+      <div class="twrap"><table class="dt">
+        <thead><tr>
+          <th style="width:140px">เวลา</th>
+          <th style="width:120px">ผู้ใช้</th>
+          <th style="width:140px">Action</th>
+          <th>เป้าหมาย</th>
+          <th>รายละเอียด</th>
+          <th style="width:120px">IP</th>
+        </tr></thead>
+        <tbody id="auTb"><tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">โหลด...</td></tr></tbody>
+      </table></div>
+      <div id="auPagination"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: HOMEROOM DASHBOARD -->
+<div class="tp" id="tab-hr">
+  <div class="pg">
+    <div id="hrContent">
+      <div style="text-align:center;padding:40px;color:#999">
+        <i class="fas fa-spinner fa-spin" style="font-size:2rem"></i><br><br>กำลังโหลด...
+      </div>
     </div>
   </div>
 </div>
@@ -1562,16 +1613,29 @@ function openEditStudent(idCard){
       if (!r.isConfirmed) return;
 
       var idChanged = (r.value.newIdCard !== r.value.originalIdCard);
+      var classChanged = (r.value.class !== stu.class);
+      var anyMajorChange = idChanged || classChanged;
 
-      // ถ้าเปลี่ยนเลขบัตร — confirm อีกที (อันตราย)
       var doSave = function(){
         api('/admin/students?action=full-edit', { method:'POST', body: r.value })
           .then(function(res){
             var nm = adminName || 'Admin';
+            var detailHtml = '';
+            if (res.idCardChanged || res.classChanged) {
+              detailHtml += '<div style="background:#E8F5E9;padding:10px;border-radius:8px;margin-top:10px;font-size:.85rem;text-align:left">';
+              if (res.idCardChanged) {
+                detailHtml += '<div style="color:#2E7D32">✓ Ref.1 อัปเดตเป็น <strong>'+res.newIdCard+'</strong></div>';
+              }
+              if (res.classChanged) {
+                detailHtml += '<div style="color:#2E7D32">✓ Ref.2 อัปเดตตามห้องใหม่ <strong>'+res.newClass+'</strong></div>';
+              }
+              detailHtml += '<div style="color:#2E7D32">✓ อัปเดต <strong>'+(res.paymentsAffected||0)+' บิล</strong></div>';
+              detailHtml += '</div>';
+            }
             Swal.fire({
               icon:'success',
               title:'แก้ไขสำเร็จ!',
-              html: res.message + '<br><br><div style="font-size:.85rem;color:#666"><i class="fas fa-user-check" style="color:#2196F3"></i> โดย <strong>'+nm+'</strong></div>',
+              html: res.message + detailHtml + '<div style="font-size:.85rem;color:#666;margin-top:8px"><i class="fas fa-user-check" style="color:#2196F3"></i> โดย <strong>'+nm+'</strong></div>',
               confirmButtonColor:'#2196F3'
             });
             loadStudents();
@@ -1579,28 +1643,47 @@ function openEditStudent(idCard){
           .catch(function(e){ Swal.fire('Error', e.message, 'error'); });
       };
 
-      if (idChanged) {
+      if (anyMajorChange) {
+        // สร้างข้อความ confirm รวม
+        var warnings = [];
+        if (idChanged) warnings.push('• อัปเดต <strong>Ref.1</strong> (เลขบัตร) ในทุกบิล');
+        if (classChanged) warnings.push('• อัปเดต <strong>Ref.2</strong> (รหัสห้อง+เทอม+ปี) ในทุกบิล');
+        warnings.push('• อัปเดตข้อมูลในตาราง students');
+
+        var diffHtml = '';
+        if (idChanged) {
+          diffHtml += '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:#F5F5F5;border-radius:8px;margin-bottom:6px">'
+            +   '<div style="min-width:50px;font-size:.78rem;color:#666;font-weight:600">ID:</div>'
+            +   '<code style="background:#fff;padding:4px 8px;border-radius:6px;font-size:.8rem">'+r.value.originalIdCard+'</code>'
+            +   '<i class="fas fa-arrow-right" style="color:#FF6B35;font-size:.8rem"></i>'
+            +   '<code style="background:#fff;padding:4px 8px;border-radius:6px;font-size:.8rem;color:#2196F3;font-weight:600">'+r.value.newIdCard+'</code>'
+            + '</div>';
+        }
+        if (classChanged) {
+          diffHtml += '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:#F5F5F5;border-radius:8px">'
+            +   '<div style="min-width:50px;font-size:.78rem;color:#666;font-weight:600">ห้อง:</div>'
+            +   '<code style="background:#fff;padding:4px 8px;border-radius:6px;font-size:.8rem">'+stu.class+'</code>'
+            +   '<i class="fas fa-arrow-right" style="color:#FF6B35;font-size:.8rem"></i>'
+            +   '<code style="background:#fff;padding:4px 8px;border-radius:6px;font-size:.8rem;color:#2196F3;font-weight:600">'+r.value.class+'</code>'
+            + '</div>';
+        }
+
         Swal.fire({
-          title: 'ยืนยันการเปลี่ยนเลขบัตร?',
+          title: 'ยืนยันการแก้ไข?',
           html:
             '<div style="text-align:left">'
             + '<div style="background:#FFF3E0;padding:12px;border-radius:10px;margin-bottom:10px">'
-            +   '<div style="font-size:.85rem;color:#E65100;margin-bottom:6px"><strong>⚠️ การเปลี่ยนเลขบัตรจะ:</strong></div>'
-            +   '<div style="font-size:.85rem;color:#E65100">• อัปเดตเลขบัตรในตาราง students</div>'
-            +   '<div style="font-size:.85rem;color:#E65100">• อัปเดตบิลทุกใบที่ผูกกับเลขบัตรเดิม</div>'
-            +   '<div style="font-size:.85rem;color:#E65100">• อัปเดต Ref.1 ใน QR Code ใหม่ทุกบิล</div>'
+            +   '<div style="font-size:.85rem;color:#E65100;margin-bottom:6px"><strong>⚠️ การเปลี่ยนแปลงนี้จะ:</strong></div>'
+            +   warnings.map(function(w){ return '<div style="font-size:.82rem;color:#E65100">'+w+'</div>'; }).join('')
             + '</div>'
-            + '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:#F5F5F5;border-radius:8px">'
-            +   '<code style="background:#fff;padding:6px 10px;border-radius:6px;font-size:.85rem">'+r.value.originalIdCard+'</code>'
-            +   '<i class="fas fa-arrow-right" style="color:#FF6B35"></i>'
-            +   '<code style="background:#fff;padding:6px 10px;border-radius:6px;font-size:.85rem;color:#2196F3;font-weight:600">'+r.value.newIdCard+'</code>'
-            + '</div>'
+            + diffHtml
             + '</div>',
           icon: 'warning',
           showCancelButton: true,
-          confirmButtonText: '<i class="fas fa-check"></i> ยืนยันเปลี่ยน',
+          confirmButtonText: '<i class="fas fa-check"></i> ยืนยันแก้ไข',
           cancelButtonText: 'ยกเลิก',
-          confirmButtonColor: '#FF6B35'
+          confirmButtonColor: '#FF6B35',
+          width: 480
         }).then(function(c){
           if (c.isConfirmed) doSave();
         });

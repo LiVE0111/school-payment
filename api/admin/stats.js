@@ -221,6 +221,150 @@ module.exports = async function handler(req, res) {
     }
 
     // ─────────────────────────────────────
+    // ACTION: audit-log → Audit Log สำหรับ super admin
+    // ?action=audit-log&adminUser=X&actionType=Y&from=ISO&to=ISO&limit=N&page=N
+    // ─────────────────────────────────────
+    if (action === 'audit-log') {
+      if (user.role !== 'super' && user.role !== 'superadmin') {
+        return fail(res, 'ต้องเป็น Super Admin เท่านั้น', 403);
+      }
+
+      const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+      const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+      const offset = (page - 1) * limit;
+
+      let q = supabase
+        .from('activity_logs')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false });
+
+      if (req.query.adminUser && req.query.adminUser !== 'ALL') {
+        q = q.eq('admin_username', req.query.adminUser);
+      }
+      if (req.query.actionType && req.query.actionType !== 'ALL') {
+        q = q.eq('action', req.query.actionType);
+      }
+      if (req.query.targetType && req.query.targetType !== 'ALL') {
+        q = q.eq('target_type', req.query.targetType);
+      }
+      if (req.query.from) q = q.gte('created_at', req.query.from);
+      if (req.query.to) q = q.lte('created_at', req.query.to);
+
+      q = q.range(offset, offset + limit - 1);
+
+      const { data, error, count } = await q;
+      if (error) return fail(res, error.message, 500);
+
+      // หา distinct values สำหรับ filter
+      const { data: adminList } = await supabase
+        .from('activity_logs')
+        .select('admin_username')
+        .limit(1000);
+      const uniqueAdmins = Array.from(new Set((adminList || []).map(a => a.admin_username).filter(Boolean)));
+
+      const { data: actionList } = await supabase
+        .from('activity_logs')
+        .select('action')
+        .limit(1000);
+      const uniqueActions = Array.from(new Set((actionList || []).map(a => a.action).filter(Boolean)));
+
+      return ok(res, {
+        logs: data || [],
+        pagination: {
+          page,
+          pageSize: limit,
+          totalCount: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
+        },
+        filters: {
+          admins: uniqueAdmins,
+          actions: uniqueActions
+        }
+      });
+    }
+
+    // ─────────────────────────────────────
+    // ACTION: homeroom-stats → สถิติเฉพาะห้องที่ครูประจำชั้นรับผิดชอบ
+    // ─────────────────────────────────────
+    if (action === 'homeroom-stats') {
+      const assignedClasses = user.assignedClasses || [];
+      if (assignedClasses.length === 0) {
+        return ok(res, {
+          assignedClasses: [],
+          stats: {},
+          totalStudents: 0,
+          totalPaid: 0,
+          totalPending: 0,
+          classBreakdown: []
+        });
+      }
+
+      // ดึงนักเรียนในห้องที่รับผิดชอบ
+      const { data: students } = await supabase
+        .from('students')
+        .select('id_card,class,name')
+        .in('class', assignedClasses)
+        .neq('status', 'graduated')
+        .neq('status', 'transferred_out');
+
+      const list = students || [];
+      const idCards = list.map(s => s.id_card);
+      const stuClassMap = {};
+      list.forEach(s => { stuClassMap[s.id_card] = s.class; });
+
+      if (idCards.length === 0) {
+        return ok(res, {
+          assignedClasses, stats: {}, totalStudents: 0,
+          totalPaid: 0, totalPending: 0, classBreakdown: []
+        });
+      }
+
+      // ดึงบิลทั้งหมด
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('id_card,amount,status')
+        .in('id_card', idCards);
+
+      const allPay = payments || [];
+      const stats = { 'รอชำระ': 0, 'กำลังตรวจสอบ': 0, 'ชำระแล้ว': 0, 'ชำระไม่สำเร็จ': 0 };
+      let totalPaid = 0, totalPending = 0;
+
+      const classMap = {};
+      assignedClasses.forEach(c => {
+        classMap[c] = { studentCount: 0, paid: 0, pending: 0, paidAmount: 0, pendingAmount: 0 };
+      });
+      list.forEach(s => {
+        if (classMap[s.class]) classMap[s.class].studentCount++;
+      });
+
+      allPay.forEach(p => {
+        const cls = stuClassMap[p.id_card];
+        const amt = Number(p.amount || 0);
+        if (stats[p.status] !== undefined) stats[p.status]++;
+        if (p.status === 'ชำระแล้ว') {
+          totalPaid += amt;
+          if (cls && classMap[cls]) { classMap[cls].paid++; classMap[cls].paidAmount += amt; }
+        } else if (p.status === 'รอชำระ' || p.status === 'กำลังตรวจสอบ') {
+          totalPending += amt;
+          if (cls && classMap[cls]) { classMap[cls].pending++; classMap[cls].pendingAmount += amt; }
+        }
+      });
+
+      const classBreakdown = assignedClasses.map(c => ({
+        class: c,
+        ...classMap[c]
+      }));
+
+      return ok(res, {
+        assignedClasses,
+        stats,
+        totalStudents: list.length,
+        totalPaid,
+        totalPending,
+        classBreakdown
+      });
+
+    // ─────────────────────────────────────
     // DEFAULT: สถิติทั่วไป (ใช้ count, ไม่ดึง full rows)
     // ─────────────────────────────────────
     const statuses = ['รอชำระ', 'กำลังตรวจสอบ', 'ชำระแล้ว', 'ชำระไม่สำเร็จ'];

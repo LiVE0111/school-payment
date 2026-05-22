@@ -28,12 +28,19 @@ module.exports = async function handler(req, res) {
       const valid = await bcrypt.compare(password, data.password_hash);
       if (!valid) return fail(res, 'username หรือ password ไม่ถูกต้อง', 401);
 
-      const token = signToken({ id: data.id, username: data.username, role: data.role });
+      const token = signToken({
+        id: data.id,
+        username: data.username,
+        role: data.role,
+        assignedClasses: data.assigned_classes || [],
+        displayName: data.display_name || data.name || data.username
+      });
       return ok(res, {
         token,
-        name: data.name,
+        name: data.display_name || data.name || data.username,
         role: data.role,
-        username: data.username
+        username: data.username,
+        assignedClasses: data.assigned_classes || []
       });
     } catch (e) {
       return fail(res, e.message, 500);

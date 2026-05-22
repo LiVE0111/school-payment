@@ -486,9 +486,9 @@ module.exports = async function handler(req, res) {
     }
 
     // ─────────────────────────────────────
-    // POST → เพิ่ม/import (auto deduplicate)
+    // POST → เพิ่ม/import (auto deduplicate) — เฉพาะตอนไม่มี action
     // ─────────────────────────────────────
-    if (req.method === 'POST') {
+    if (req.method === 'POST' && !action) {
       const body = req.body || {};
       const list = Array.isArray(body) ? body : (body.list || [body]);
 
@@ -642,43 +642,66 @@ module.exports = async function handler(req, res) {
 
       if (errStu) return fail(res, 'แก้ไข students ไม่สำเร็จ: ' + errStu.message, 500);
 
-      // ถ้าเปลี่ยน id_card → ต้องอัปเดต payments + activity_logs ด้วย
+      // ─── อัปเดต payments ตามที่จำเป็น ───
+      // เปลี่ยน id_card → ref1 ต้องอัป
+      // เปลี่ยน class    → ref2 ต้องอัป (ทุกใบ คำนวณตามปี/เทอมเดิม)
+      const classChanged = (body.class !== undefined && String(body.class).trim() !== (existing.class || ''));
       let paymentsUpdated = 0;
-      if (isIdCardChange) {
-        // นับก่อนอัปเดต
-        const { count } = await supabase
-          .from('payments')
-          .select('*', { count: 'exact', head: true })
-          .eq('id_card', originalIdCard);
-        paymentsUpdated = count || 0;
 
-        // ตรวจว่า newIdCard เป็นเลขบัตรจริงไหม — ถ้าใช่ ให้ใส่ใน ref1 ด้วย
+      if (isIdCardChange || classChanged) {
+        const queryIdCard = originalIdCard;  // ดึงด้วย ID เดิมก่อนอัป
+        const { data: pays, error: errFetch } = await supabase
+          .from('payments')
+          .select('trans_id,year,term')
+          .eq('id_card', queryIdCard);
+
+        if (errFetch) return fail(res, 'อ่าน payments ไม่ได้: ' + errFetch.message, 500);
+
+        const list = pays || [];
+        const newClass = classChanged ? String(body.class).trim() : (existing.class || '');
         const isRealNewId = /^\d{13}$/.test(newIdCard);
 
-        const payUpdates = { id_card: newIdCard };
-        if (isRealNewId) payUpdates.ref1 = newIdCard;
+        // อัปทีละใบ — เพราะ ref2 ต้อง compute ตาม term/year ของบิลนั้น
+        for (const p of list) {
+          const payUpdates = {};
 
-        const { error: errPay } = await supabase
-          .from('payments')
-          .update(payUpdates)
-          .eq('id_card', originalIdCard);
+          if (isIdCardChange) {
+            payUpdates.id_card = newIdCard;
+            if (isRealNewId) payUpdates.ref1 = newIdCard;
+          }
 
-        if (errPay) {
-          return fail(res, 'students อัปเดตแล้ว แต่ payments error: ' + errPay.message, 500);
+          if (classChanged) {
+            // ref2 ใหม่ = คำนวณจากห้องใหม่ + term/year เดิมของบิลใบนี้
+            payUpdates.ref2 = buildRef2(newClass, p.term, p.year);
+          }
+
+          if (Object.keys(payUpdates).length > 0) {
+            const { error: errOne } = await supabase
+              .from('payments')
+              .update(payUpdates)
+              .eq('trans_id', p.trans_id);
+            if (!errOne) paymentsUpdated++;
+          }
         }
 
-        // activity_logs (ถ้ามีตาราง)
+        // activity log
         try {
           await supabase.from('activity_logs').insert({
             admin_username: user.username || 'admin',
-            action: 'edit_student_id',
+            action: isIdCardChange ? 'edit_student_id' : 'edit_student_class',
             target_type: 'student',
-            target_id: newIdCard,
-            details: { from: originalIdCard, to: newIdCard, paymentsAffected: paymentsUpdated }
+            target_id: isIdCardChange ? newIdCard : originalIdCard,
+            details: {
+              idCardChanged: isIdCardChange,
+              classChanged: classChanged,
+              from: { id: originalIdCard, class: existing.class },
+              to: { id: newIdCard, class: newClass },
+              paymentsAffected: paymentsUpdated
+            }
           });
         } catch(e) {}
       } else {
-        // ปกติ — แค่ log การแก้ไข
+        // ไม่ได้เปลี่ยน id_card หรือ class — แค่ log
         try {
           await supabase.from('activity_logs').insert({
             admin_username: user.username || 'admin',
@@ -690,13 +713,22 @@ module.exports = async function handler(req, res) {
         } catch(e) {}
       }
 
+      // สร้างข้อความสรุป
+      const parts = [];
+      if (isIdCardChange) parts.push(`ID: ${originalIdCard} → ${newIdCard}`);
+      if (classChanged) parts.push(`ห้อง: ${existing.class || '-'} → ${body.class}`);
+      const summary = parts.length > 0
+        ? `แก้ไขสำเร็จ! ${parts.join(', ')} (อัปเดตบิล ${paymentsUpdated} ใบ)`
+        : 'แก้ไขข้อมูลสำเร็จ';
+
       return ok(res, {
-        message: isIdCardChange
-          ? `แก้ไขสำเร็จ! ID เปลี่ยน ${originalIdCard} → ${newIdCard} (อัปเดตบิล ${paymentsUpdated} รายการ)`
-          : 'แก้ไขข้อมูลสำเร็จ',
+        message: summary,
         idCardChanged: isIdCardChange,
+        classChanged: classChanged,
         oldIdCard: originalIdCard,
         newIdCard: isIdCardChange ? newIdCard : null,
+        oldClass: existing.class,
+        newClass: classChanged ? body.class : null,
         paymentsAffected: paymentsUpdated
       });
     }

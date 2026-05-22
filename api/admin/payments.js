@@ -129,6 +129,21 @@ module.exports = async function handler(req, res) {
     if (action === 'summary') {
       const { cls, year, term } = req.query;
 
+      // ⭐ Homeroom filter
+      let homeroomIds = null;
+      if (user.role === 'homeroom') {
+        const assigned = user.assignedClasses || [];
+        if (assigned.length > 0) {
+          const { data: stuList } = await supabase.from('students').select('id_card').in('class', assigned);
+          homeroomIds = (stuList || []).map(s => s.id_card);
+          if (homeroomIds.length === 0) {
+            return ok(res, { total:0, totalAmount:0, 'รอชำระ':0, 'กำลังตรวจสอบ':0, 'ชำระแล้ว':0, 'ชำระไม่สำเร็จ':0 });
+          }
+        } else {
+          return ok(res, { total:0, totalAmount:0, 'รอชำระ':0, 'กำลังตรวจสอบ':0, 'ชำระแล้ว':0, 'ชำระไม่สำเร็จ':0 });
+        }
+      }
+
       const statuses = ['รอชำระ', 'กำลังตรวจสอบ', 'ชำระแล้ว', 'ชำระไม่สำเร็จ'];
       const summary = { total: 0, totalAmount: 0 };
 
@@ -136,6 +151,7 @@ module.exports = async function handler(req, res) {
         let q = supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', s);
         if (year && year !== 'ALL') q = q.eq('year', String(year));
         if (term && term !== 'ALL') q = q.eq('term', String(term));
+        if (homeroomIds) q = q.in('id_card', homeroomIds);
 
         const { count } = await q;
         summary[s] = count || 0;
@@ -146,6 +162,7 @@ module.exports = async function handler(req, res) {
       let qPaid = supabase.from('payments').select('amount').eq('status', 'ชำระแล้ว');
       if (year && year !== 'ALL') qPaid = qPaid.eq('year', String(year));
       if (term && term !== 'ALL') qPaid = qPaid.eq('term', String(term));
+      if (homeroomIds) qPaid = qPaid.in('id_card', homeroomIds);
 
       const { data: paidData } = await qPaid;
       summary.totalAmount = (paidData || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
@@ -161,12 +178,30 @@ module.exports = async function handler(req, res) {
     const limit = Math.min(PAGE_SIZE_MAX, Math.max(10, parseInt(pageSize || PAGE_SIZE_DEFAULT, 10)));
     const offset = (pageNum - 1) * limit;
 
+    // ⭐ Homeroom filter: ครูประจำชั้นเห็นเฉพาะห้องที่รับผิดชอบ
+    let homeroomIdCards = null;
+    if (user.role === 'homeroom') {
+      const assigned = user.assignedClasses || [];
+      if (assigned.length === 0) {
+        return ok(res, { payments: [], pagination: { page:1, pageSize:limit, totalCount:0, totalPages:0, hasMore:false } });
+      }
+      const { data: stuList } = await supabase
+        .from('students')
+        .select('id_card')
+        .in('class', assigned);
+      homeroomIdCards = (stuList || []).map(s => s.id_card);
+      if (homeroomIdCards.length === 0) {
+        return ok(res, { payments: [], pagination: { page:1, pageSize:limit, totalCount:0, totalPages:0, hasMore:false } });
+      }
+    }
+
     // 1. Build base query
     let q = supabase.from('payments').select('*', { count: 'exact' }).order('updated_at', { ascending: false });
 
     if (status && status !== 'ALL') q = q.eq('status', status);
     if (year && year !== 'ALL') q = q.eq('year', String(year));
     if (term && term !== 'ALL') q = q.eq('term', String(term));
+    if (homeroomIdCards) q = q.in('id_card', homeroomIdCards);
 
     // 2. Pagination
     q = q.range(offset, offset + limit - 1);
