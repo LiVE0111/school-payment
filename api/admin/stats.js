@@ -363,6 +363,7 @@ module.exports = async function handler(req, res) {
         totalPending,
         classBreakdown
       });
+    }
 
     // ─────────────────────────────────────
     // DEFAULT: สถิติทั่วไป (ใช้ count, ไม่ดึง full rows)
