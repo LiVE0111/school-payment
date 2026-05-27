@@ -196,16 +196,24 @@ module.exports = async function handler(req, res) {
       const { data: paidData } = await qPaid;
       summary.totalAmount = (paidData || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-      // ⭐ NEW: นับเปิด QR แล้วยังไม่จ่าย
-      let qPending = supabase.from('payments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'รอชำระ')
-        .gt('qr_open_count', 0);
-      if (year && year !== 'ALL') qPending = qPending.eq('year', String(year));
-      if (term && term !== 'ALL') qPending = qPending.eq('term', String(term));
-      if (homeroomIds) qPending = qPending.in('id_card', homeroomIds);
-      const { count: qrPendingCount } = await qPending;
-      summary.qrOpenedNotPaid = qrPendingCount || 0;
+      // ⭐ NEW: นับเปิด QR แล้วยังไม่จ่าย (graceful)
+      try {
+        let qPending = supabase.from('payments')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'รอชำระ')
+          .gt('qr_open_count', 0);
+        if (year && year !== 'ALL') qPending = qPending.eq('year', String(year));
+        if (term && term !== 'ALL') qPending = qPending.eq('term', String(term));
+        if (homeroomIds) qPending = qPending.in('id_card', homeroomIds);
+        const { count: qrPendingCount, error: qrErr } = await qPending;
+        if (qrErr && /qr_open_count|does not exist/i.test(qrErr.message)) {
+          summary.qrOpenedNotPaid = 0;  // Migration ยังไม่รัน
+        } else {
+          summary.qrOpenedNotPaid = qrPendingCount || 0;
+        }
+      } catch (e) {
+        summary.qrOpenedNotPaid = 0;
+      }
 
       return ok(res, summary);
     }
@@ -235,7 +243,16 @@ module.exports = async function handler(req, res) {
       }
 
       const { data: rows, error } = await q;
-      if (error) return fail(res, error.message, 500);
+      if (error) {
+        // ⭐ Graceful fallback — ถ้า column ยังไม่มี (Migration v28 ยังไม่รัน)
+        if (/qr_open_count|qr_last_opened_at|does not exist/i.test(error.message)) {
+          return ok(res, {
+            tracking: [], total: 0,
+            warning: 'กรุณารัน Migration v28 ใน Supabase ก่อน (docs/migration-v28.sql)'
+          });
+        }
+        return fail(res, error.message, 500);
+      }
 
       const idCards = Array.from(new Set((rows || []).map(r => r.id_card)));
       const { data: students } = idCards.length > 0

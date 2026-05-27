@@ -17,7 +17,7 @@ module.exports = async function handler(req, res) {
 
       const { data: pay, error: errFind } = await supabase
         .from('payments')
-        .select('trans_id,id_card,status,qr_opened_at,qr_open_count,amount,title,year,term')
+        .select('trans_id,id_card,status,amount,title,year,term')
         .eq('trans_id', transId)
         .maybeSingle();
 
@@ -26,17 +26,32 @@ module.exports = async function handler(req, res) {
         return ok(res, { skipped: true, reason: 'paid' });
       }
 
-      const newCount = (pay.qr_open_count || 0) + 1;
-      const updates = {
-        qr_last_opened_at: now,
-        qr_open_count: newCount
-      };
-      if (!pay.qr_opened_at) updates.qr_opened_at = now;
+      // ⭐ Try update QR tracking — ถ้า column ไม่มี (Migration ยังไม่รัน) ก็ skip
+      let newCount = 1;
+      try {
+        const { data: payTracking } = await supabase
+          .from('payments')
+          .select('qr_opened_at,qr_open_count')
+          .eq('trans_id', transId)
+          .maybeSingle();
 
-      await supabase
-        .from('payments')
-        .update(updates)
-        .eq('trans_id', transId);
+        newCount = ((payTracking && payTracking.qr_open_count) || 0) + 1;
+        const updates = {
+          qr_last_opened_at: now,
+          qr_open_count: newCount
+        };
+        if (!(payTracking && payTracking.qr_opened_at)) updates.qr_opened_at = now;
+
+        const { error: errUp } = await supabase
+          .from('payments')
+          .update(updates)
+          .eq('trans_id', transId);
+
+        if (errUp && /qr_open_count|does not exist/i.test(errUp.message)) {
+          // Migration ยังไม่รัน — return ปกติ ไม่ error
+          return ok(res, { tracked: false, reason: 'migration_pending' });
+        }
+      } catch (e) { /* silent */ }
 
       // ⭐ NEW: บันทึก activity log
       try {

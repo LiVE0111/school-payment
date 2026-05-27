@@ -968,6 +968,9 @@ function renderResult(data){
     if (qrType === 'BILL_PAYMENT' && fullBillerId.length === 13 && p.billerSuffix && p.billerSuffix !== 'BILL_PAYMENT') {
       fullBillerId = fullBillerId + p.billerSuffix;
     }
+    // ⭐ เก็บใน payment เพื่อให้ renderQRCode เข้าถึงได้
+    p._qrType = qrType;
+    p._fullBillerId = fullBillerId;
 
     if(showQR){
       var qrHeader = qrType === 'PROMPTPAY' ? 'พร้อมเพย์ นิติบุคคล' : 'PromptPay Bill Payment';
@@ -1165,6 +1168,16 @@ function renderQRCode(payment, qrId){
   el.innerHTML = '<div style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:.8rem"><i class="fas fa-spinner fa-spin"></i> กำลังสร้าง QR...</div>';
 
   var attempts = 0;
+  // ⭐ ดึงจาก payment object (fix qrType undefined)
+  var _qrType = payment._qrType || ((payment.billerSuffix === 'PROMPTPAY') ? 'PROMPTPAY' : 'BILL_PAYMENT');
+  var _fullBillerId = payment._fullBillerId;
+  if (!_fullBillerId) {
+    _fullBillerId = String(payment.taxId || '');
+    if (_qrType === 'BILL_PAYMENT' && _fullBillerId.length === 13 && payment.billerSuffix && payment.billerSuffix !== 'BILL_PAYMENT') {
+      _fullBillerId = _fullBillerId + payment.billerSuffix;
+    }
+  }
+
   function tryRender(){
     attempts++;
     if (typeof qrcode === 'undefined') {
@@ -1172,9 +1185,9 @@ function renderQRCode(payment, qrId){
       el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ โหลด QR Library ไม่สำเร็จ</div>';
       return;
     }
-    var payload = buildQR(qrType, fullBillerId, payment.ref1, payment.ref2, payment.amount);
+    var payload = buildQR(_qrType, _fullBillerId, payment.ref1, payment.ref2, payment.amount);
     if (!payload) {
-      var msg = qrType === 'PROMPTPAY' ? 'Tax ID ต้องมี 13 หลัก' : 'Biller ID ต้องมี 15 หลัก';
+      var msg = _qrType === 'PROMPTPAY' ? 'Tax ID ต้องมี 13 หลัก' : 'Biller ID ต้องมี 15 หลัก';
       el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ ข้อมูลตั้งค่าไม่ถูกต้อง<br>('+msg+')</div>';
       return;
     }
