@@ -12,10 +12,12 @@ module.exports = async function handler(req, res) {
       if (!transId) return fail(res, 'กรุณาระบุ transId');
 
       const now = new Date().toISOString();
+      const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection?.remoteAddress || '';
+      const userAgent = req.headers['user-agent'] || '';
 
       const { data: pay, error: errFind } = await supabase
         .from('payments')
-        .select('trans_id,status,qr_opened_at,qr_open_count')
+        .select('trans_id,id_card,status,qr_opened_at,qr_open_count,amount,title,year,term')
         .eq('trans_id', transId)
         .maybeSingle();
 
@@ -24,9 +26,10 @@ module.exports = async function handler(req, res) {
         return ok(res, { skipped: true, reason: 'paid' });
       }
 
+      const newCount = (pay.qr_open_count || 0) + 1;
       const updates = {
         qr_last_opened_at: now,
-        qr_open_count: (pay.qr_open_count || 0) + 1
+        qr_open_count: newCount
       };
       if (!pay.qr_opened_at) updates.qr_opened_at = now;
 
@@ -35,7 +38,27 @@ module.exports = async function handler(req, res) {
         .update(updates)
         .eq('trans_id', transId);
 
-      return ok(res, { tracked: true, openCount: updates.qr_open_count });
+      // ⭐ NEW: บันทึก activity log
+      try {
+        await supabase.from('activity_logs').insert({
+          admin_username: 'parent',
+          action: 'qr_opened',
+          target_type: 'payment',
+          target_id: transId,
+          details: {
+            idCard: pay.id_card,
+            title: pay.title,
+            year: pay.year,
+            term: pay.term,
+            amount: pay.amount,
+            openCount: newCount,
+            userAgent: userAgent.slice(0, 200)
+          },
+          ip_address: String(ipAddress).slice(0, 50)
+        });
+      } catch(e) { /* silent */ }
+
+      return ok(res, { tracked: true, openCount: newCount });
     } catch (e) {
       return fail(res, e.message, 500);
     }

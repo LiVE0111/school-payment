@@ -965,13 +965,28 @@ function renderResult(data){
           + '<div class="ppb"><span class="ppd"></span>'+ qrHeader +'</div>'
           + '<div class="ql"><i class="fas fa-qrcode"></i> ยอด ฿'+Number(p.amount).toLocaleString('th-TH',{minimumFractionDigits:2})+'</div>'
 
-          // ⭐ NEW: ปุ่มแสดง QR (ไม่ render ทันที)
+          // ⭐ NEW: ปุ่มแสดง QR (ไม่ render ทันที) + คำเตือนสีแดงใหญ่
           + '<div id="'+qrId+'-placeholder" style="margin:14px 0">'
+
+          // คำเตือนสีแดงใหญ่ — แสดงตลอดเวลา (ก่อนกดปุ่ม)
+          +   '<div style="background:linear-gradient(135deg,#F44336,#D32F2F);color:#fff;border-radius:14px;padding:16px;margin-bottom:14px;text-align:center;box-shadow:0 4px 16px rgba(244,67,54,.4);border:3px solid #B71C1C">'
+          +     '<div style="font-size:1.8rem;margin-bottom:6px"><i class="fas fa-exclamation-triangle"></i></div>'
+          +     '<div style="font-size:1.05rem;font-weight:800;line-height:1.5;margin-bottom:8px">'
+          +       '⚠️ หลังจากสแกนจ่ายแล้ว<br>'
+          +       '<span style="color:#FFEB3B;font-size:1.2rem">กรุณาแนบสลิปการโอนเงิน</span><br>'
+          +       'ให้กับทางโรงเรียน'
+          +     '</div>'
+          +     '<div style="font-size:.85rem;font-weight:600;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:8px;margin-top:8px;line-height:1.4">'
+          +       '📎 เพื่อเป็นหลักฐานยืนยันว่าท่านได้<br>ทำการจ่ายค่าบำรุงการศึกษาแล้ว'
+          +     '</div>'
+          +   '</div>'
+
+          // ปุ่มแสดง QR
           +   '<button onclick="showQRConfirm(\''+p.transId+'\',\''+qrId+'\',\''+escapeJs(p.title||'')+'\','+Number(p.amount)+')" '
-          +     'style="width:100%;background:linear-gradient(135deg,#FF6B35,#F7931E);color:white;border:none;border-radius:14px;padding:16px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(255,107,53,.3);display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s">'
-          +     '<i class="fas fa-qrcode" style="font-size:1.2rem"></i> แสดง QR Code เพื่อชำระเงิน'
+          +     'style="width:100%;background:linear-gradient(135deg,#FF6B35,#F7931E);color:white;border:none;border-radius:14px;padding:18px;font-size:1.05rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(255,107,53,.4);display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s">'
+          +     '<i class="fas fa-qrcode" style="font-size:1.3rem"></i> กดเพื่อแสดง QR Code'
           +   '</button>'
-          +   '<div style="text-align:center;font-size:.72rem;color:#999;margin-top:6px"><i class="fas fa-info-circle"></i> กดปุ่มเพื่อแสดง QR Code</div>'
+          +   '<div style="text-align:center;font-size:.75rem;color:#666;margin-top:8px;font-weight:500"><i class="fas fa-lock"></i> ปลอดภัย — กดเพื่อแสดง QR เมื่อพร้อมจะชำระ</div>'
           + '</div>'
 
           // ⭐ ที่จะ render QR (ซ่อนไว้ก่อน)
@@ -1067,36 +1082,52 @@ function showQRConfirm(transId, qrId, title, amount){
   }
 
   Swal.fire({
-    title: '<i class="fas fa-shield-alt" style="color:#FF6B35"></i> ยืนยันก่อนแสดง QR',
+    title: '<i class="fas fa-exclamation-triangle" style="color:#F44336"></i> <span style="color:#F44336">โปรดอ่านก่อนสแกน!</span>',
     html:
       '<div style="text-align:left;font-size:.92rem;line-height:1.6">'
+
+      // รายการ
       + '<div style="background:linear-gradient(135deg,#FFF3E0,#FFFDF7);border:2px solid #FF9800;border-radius:12px;padding:14px;margin-bottom:14px">'
       +   '<div style="font-weight:700;color:#E65100;margin-bottom:6px;font-size:.92rem">📋 รายการที่จะชำระ</div>'
       +   '<div style="font-size:.88rem;color:#333">' + (title || 'ค่าบำรุงการศึกษา') + '</div>'
       +   '<div style="font-size:1.4rem;font-weight:700;color:#FF6B35;margin-top:8px">฿' + Number(amount).toLocaleString('th-TH',{minimumFractionDigits:2}) + '</div>'
       + '</div>'
 
+      // ⭐⭐⭐ คำเตือนใหญ่สีแดง — ตามที่ user ต้องการ
+      + '<div style="background:#F44336;color:#fff;border-radius:14px;padding:18px;margin-bottom:14px;text-align:center;box-shadow:0 4px 16px rgba(244,67,54,.4);animation:pulse 2s infinite">'
+      +   '<div style="font-size:1.6rem;margin-bottom:8px"><i class="fas fa-exclamation-triangle"></i> <i class="fas fa-receipt"></i></div>'
+      +   '<div style="font-size:1.15rem;font-weight:800;line-height:1.5;margin-bottom:8px">'
+      +     'หลังจากสแกนจ่ายแล้ว<br>'
+      +     '<span style="color:#FFEB3B;font-size:1.3rem">กรุณาแนบสลิปการโอนเงิน</span><br>'
+      +     'ให้กับทางโรงเรียน'
+      +   '</div>'
+      +   '<div style="font-size:.92rem;font-weight:600;background:rgba(0,0,0,0.2);padding:8px 12px;border-radius:8px;margin-top:8px">'
+      +     '📎 เพื่อเป็นหลักฐานยืนยันว่าท่านได้<br>ทำการจ่ายค่าบำรุงการศึกษาแล้ว'
+      +   '</div>'
+      + '</div>'
+
+      // คำเตือนรอง
       + '<div style="background:#FFEBEE;border-left:4px solid #F44336;padding:12px;border-radius:8px;margin-bottom:12px">'
-      +   '<div style="font-weight:700;color:#C62828;margin-bottom:6px">⚠️ คำเตือนสำคัญ</div>'
-      +   '<ul style="margin:0;padding-left:20px;font-size:.84rem;color:#C62828">'
+      +   '<div style="font-weight:700;color:#C62828;margin-bottom:6px;font-size:.92rem">⚠️ คำเตือนสำคัญ</div>'
+      +   '<ul style="margin:0;padding-left:20px;font-size:.84rem;color:#C62828;line-height:1.7">'
       +     '<li>เมื่อสแกน QR แล้วจะหักเงินจากบัญชีของท่าน <strong>ทันที</strong></li>'
       +     '<li>การโอนเงินไม่สามารถยกเลิกได้</li>'
       +     '<li>กรุณาตรวจสอบยอดให้ถูกต้องก่อนยืนยัน</li>'
-      +     '<li><strong>เก็บสลิปไว้</strong> เพื่ออัปโหลดยืนยันการชำระ</li>'
       +   '</ul>'
       + '</div>'
 
-      + '<div style="background:#E8F5E9;border-left:4px solid #4CAF50;padding:10px;border-radius:8px;font-size:.82rem;color:#1B5E20">'
-      +   '<i class="fas fa-check-circle"></i> หลังโอนเงินแล้ว <strong>กรุณาแนบสลิปทันที</strong> เพื่อให้ระบบยืนยันการชำระ'
+      + '<div style="background:#E8F5E9;border-left:4px solid #4CAF50;padding:10px;border-radius:8px;font-size:.85rem;color:#1B5E20;text-align:center;font-weight:600">'
+      +   '<i class="fas fa-info-circle"></i> หากไม่แนบสลิป ระบบจะไม่สามารถยืนยันการชำระได้'
       + '</div>'
-      + '</div>',
+      + '</div>'
+      + '<style>@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }</style>',
     icon: null,
     showCancelButton: true,
-    confirmButtonText: '<i class="fas fa-qrcode"></i> ยืนยัน แสดง QR',
+    confirmButtonText: '<i class="fas fa-qrcode"></i> เข้าใจแล้ว แสดง QR',
     cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: '#FF6B35',
+    confirmButtonColor: '#F44336',
     cancelButtonColor: '#9E9E9E',
-    width: 480,
+    width: 520,
     customClass: { confirmButton: 'swal-confirm-qr' }
   }).then(function(result){
     if (!result.isConfirmed) return;
@@ -1158,7 +1189,20 @@ function renderQRCode(payment, qrId){
         }
       }
       svg += '</svg>';
-      el.innerHTML = svg;
+
+      // ⭐ NEW: เพิ่มคำเตือนสีแดงใต้ QR ด้วย — เน้นซ้ำ
+      el.innerHTML = svg
+        + '<div style="background:linear-gradient(135deg,#F44336,#C62828);color:#fff;border-radius:12px;padding:14px;margin-top:14px;text-align:center;box-shadow:0 4px 14px rgba(244,67,54,.35);animation:pulseRed 1.5s ease-in-out infinite">'
+        +   '<div style="font-size:1.4rem;margin-bottom:4px"><i class="fas fa-receipt"></i></div>'
+        +   '<div style="font-size:1rem;font-weight:800;line-height:1.4">'
+        +     '⚠️ <span style="color:#FFEB3B">หลังโอนเสร็จ</span><br>'
+        +     '<span style="font-size:1.1rem">อย่าลืมแนบสลิป!</span>'
+        +   '</div>'
+        +   '<div style="font-size:.78rem;margin-top:6px;background:rgba(0,0,0,.2);padding:6px 8px;border-radius:6px;font-weight:500">'
+        +     'เพื่อยืนยันการชำระค่าบำรุงการศึกษา'
+        +   '</div>'
+        + '</div>'
+        + '<style>@keyframes pulseRed { 0%, 100% { box-shadow: 0 4px 14px rgba(244,67,54,.35); } 50% { box-shadow: 0 4px 24px rgba(244,67,54,.7); } }</style>';
 
       // ⭐ Track เปิด QR (fire and forget) — ตอนนี้ผู้ปกครองยืนยันแล้ว
       try {
@@ -1169,15 +1213,19 @@ function renderQRCode(payment, qrId){
         }).catch(function(){});
       } catch(e){}
 
-      // Toast แจ้ง
+      // Toast แจ้ง — เน้นการแนบสลิป
       Swal.fire({
-        icon: 'success',
-        title: 'QR พร้อมแล้ว!',
-        text: 'สแกนเพื่อชำระเงิน แล้วอย่าลืมแนบสลิปนะคะ',
-        timer: 3000,
-        showConfirmButton: false,
-        toast: true,
-        position: 'top'
+        icon: 'warning',
+        title: '<span style="color:#F44336">⚠️ อย่าลืมแนบสลิป!</span>',
+        html: '<div style="font-size:1rem;color:#C62828;font-weight:600;line-height:1.5">'
+            + 'หลังโอนเสร็จ กดปุ่ม<br>'
+            + '<span style="color:#FF6B35"><strong>"แจ้งโอนเงิน / อัปโหลดสลิป"</strong></span><br>'
+            + 'เพื่อยืนยันการชำระ'
+            + '</div>',
+        timer: 5000,
+        showConfirmButton: true,
+        confirmButtonText: 'เข้าใจแล้ว',
+        confirmButtonColor: '#F44336'
       });
     } catch(err) {
       el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ สร้าง QR ไม่สำเร็จ: '+err.message+'</div>';

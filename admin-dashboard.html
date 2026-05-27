@@ -804,14 +804,21 @@ function renderPay(d){
         + '</div>';
     }
 
-    // ⭐ NEW: แสดงเปิด QR แล้วยังไม่จ่าย
+    // ⭐ แสดงเปิด QR ทุกสถานะ (admin เห็นข้อมูล tracking ครบ)
     var qrHtml = '';
-    if (r.qrOpenCount > 0 && r.status === 'รอชำระ') {
-      qrHtml = '<div style="font-size:.7rem;color:#FF9800;margin-top:3px;display:flex;align-items:center;gap:3px"'
+    if (r.qrOpenCount > 0) {
+      // สีตามสถานะ + จำนวนครั้ง
+      var qColor;
+      if (r.status === 'ชำระแล้ว') qColor = '#4CAF50';       // เขียว = ดี
+      else if (r.qrOpenCount >= 3) qColor = '#F44336';         // แดง = เปิดเยอะ น่าสงสัย
+      else if (r.qrOpenCount >= 2) qColor = '#FF9800';         // ส้ม = ปานกลาง
+      else qColor = '#888';                                    // เทา = ปกติ
+
+      qrHtml = '<div style="font-size:.7rem;color:'+qColor+';margin-top:3px;display:flex;align-items:center;gap:3px"'
         + ' title="เปิด QR แล้ว '+r.qrOpenCount+' ครั้ง">'
         + '<i class="fas fa-qrcode" style="font-size:.65rem"></i> เปิด QR '
         + fmtThaiDateTime(r.qrLastOpenedAt, false)
-        + ' <span style="background:#FF9800;color:white;padding:0 5px;border-radius:8px">×'+r.qrOpenCount+'</span>'
+        + ' <span style="background:'+qColor+';color:white;padding:0 5px;border-radius:8px;font-weight:600">×'+r.qrOpenCount+'</span>'
         + '</div>';
     }
 
