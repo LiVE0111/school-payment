@@ -4,6 +4,43 @@ const { ok, fail, handleOptions } = require('../../lib/auth');
 
 module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return handleOptions(res);
+
+  // ⭐ POST ?action=track-qr → บันทึกการเปิด QR
+  if (req.method === 'POST' && req.query.action === 'track-qr') {
+    try {
+      const { transId } = req.body || {};
+      if (!transId) return fail(res, 'กรุณาระบุ transId');
+
+      const now = new Date().toISOString();
+
+      const { data: pay, error: errFind } = await supabase
+        .from('payments')
+        .select('trans_id,status,qr_opened_at,qr_open_count')
+        .eq('trans_id', transId)
+        .maybeSingle();
+
+      if (errFind || !pay) return fail(res, 'ไม่พบบิล', 404);
+      if (pay.status === 'ชำระแล้ว') {
+        return ok(res, { skipped: true, reason: 'paid' });
+      }
+
+      const updates = {
+        qr_last_opened_at: now,
+        qr_open_count: (pay.qr_open_count || 0) + 1
+      };
+      if (!pay.qr_opened_at) updates.qr_opened_at = now;
+
+      await supabase
+        .from('payments')
+        .update(updates)
+        .eq('trans_id', transId);
+
+      return ok(res, { tracked: true, openCount: updates.qr_open_count });
+    } catch (e) {
+      return fail(res, e.message, 500);
+    }
+  }
+
   if (req.method !== 'GET') return fail(res, 'Method not allowed', 405);
 
   try {
@@ -69,6 +106,11 @@ module.exports = async function handler(req, res) {
         billType: p.bill_type || 'batch',
         receiptNo: p.receipt_no || '',
         timestamp: p.updated_at,
+        // ⭐ NEW: QR tracking + transfer
+        transferAt: p.transfer_at,
+        qrOpenedAt: p.qr_opened_at,
+        qrLastOpenedAt: p.qr_last_opened_at,
+        qrOpenCount: p.qr_open_count || 0,
         taxId,
         billerSuffix: suffix
       }))

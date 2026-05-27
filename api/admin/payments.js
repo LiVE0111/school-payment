@@ -23,12 +23,13 @@ module.exports = async function handler(req, res) {
     // ACTION: export → Streaming CSV
     // ─────────────────────────────────────
     if (action === 'export') {
-      const { status, cls, year, term, search } = req.query;
+      const { status, cls, year, term, search, dateFrom, dateTo } = req.query;
 
       const headers = [
         'เลขที่ใบเสร็จ', 'ห้อง', 'รหัสนักเรียน', 'ชื่อ-สกุล', 'เลขบัตรประชาชน',
         'รายการ', 'ปี', 'เทอม', 'จำนวนเงิน', 'สถานะ',
-        'ชื่อผู้ชำระ', 'Ref.1', 'Ref.2', 'อนุมัติโดย', 'วันที่อนุมัติ',
+        'ชื่อผู้ชำระ', 'วันเวลาโอน (ผู้ปกครอง)', 'เปิด QR ครั้งล่าสุด', 'จำนวนครั้งเปิด QR',
+        'Ref.1', 'Ref.2', 'อนุมัติโดย', 'วันที่อนุมัติ',
         'วันที่อัปเดต', 'หมายเหตุ', 'ประเภทบิล'
       ];
 
@@ -55,7 +56,7 @@ module.exports = async function handler(req, res) {
       const BATCH = 1000;
       let from = 0;
       let totalRows = 0;
-      const MAX_TIME_MS = 8000;  // กัน Vercel timeout 10s
+      const MAX_TIME_MS = 8000;
       const startTime = Date.now();
 
       while (true) {
@@ -72,6 +73,9 @@ module.exports = async function handler(req, res) {
         if (status && status !== 'ALL') q = q.eq('status', status);
         if (year && year !== 'ALL') q = q.eq('year', String(year));
         if (term && term !== 'ALL') q = q.eq('term', String(term));
+        // ⭐ NEW: Date filter
+        if (dateFrom) q = q.gte('updated_at', dateFrom + 'T00:00:00.000+07:00');
+        if (dateTo)   q = q.lte('updated_at', dateTo + 'T23:59:59.999+07:00');
 
         const { data: chunk, error } = await q;
         if (error) {
@@ -103,6 +107,11 @@ module.exports = async function handler(req, res) {
             Number(p.amount || 0).toFixed(2),
             p.status || '',
             p.payer_name || '',
+            // ⭐ NEW
+            p.transfer_at ? p.transfer_at.slice(0, 19).replace('T', ' ') : '',
+            p.qr_last_opened_at ? p.qr_last_opened_at.slice(0, 19).replace('T', ' ') : '',
+            p.qr_open_count || 0,
+            // ─── เดิม ───
             p.ref1 || '',
             p.ref2 || '',
             p.approved_by || '',
@@ -127,7 +136,7 @@ module.exports = async function handler(req, res) {
     // ACTION: summary → สถิติย่อ (เร็ว)
     // ─────────────────────────────────────
     if (action === 'summary') {
-      const { cls, year, term } = req.query;
+      const { cls, year, term, dateFrom: sFrom, dateTo: sTo } = req.query;
 
       // ⭐ Homeroom filter
       let homeroomIds = null;
@@ -137,10 +146,10 @@ module.exports = async function handler(req, res) {
           const { data: stuList } = await supabase.from('students').select('id_card').in('class', assigned);
           homeroomIds = (stuList || []).map(s => s.id_card);
           if (homeroomIds.length === 0) {
-            return ok(res, { total:0, totalAmount:0, 'รอชำระ':0, 'กำลังตรวจสอบ':0, 'ชำระแล้ว':0, 'ชำระไม่สำเร็จ':0 });
+            return ok(res, { total:0, totalAmount:0, qrOpenedNotPaid:0, 'รอชำระ':0, 'กำลังตรวจสอบ':0, 'ชำระแล้ว':0, 'ชำระไม่สำเร็จ':0 });
           }
         } else {
-          return ok(res, { total:0, totalAmount:0, 'รอชำระ':0, 'กำลังตรวจสอบ':0, 'ชำระแล้ว':0, 'ชำระไม่สำเร็จ':0 });
+          return ok(res, { total:0, totalAmount:0, qrOpenedNotPaid:0, 'รอชำระ':0, 'กำลังตรวจสอบ':0, 'ชำระแล้ว':0, 'ชำระไม่สำเร็จ':0 });
         }
       }
 
@@ -152,6 +161,8 @@ module.exports = async function handler(req, res) {
         if (year && year !== 'ALL') q = q.eq('year', String(year));
         if (term && term !== 'ALL') q = q.eq('term', String(term));
         if (homeroomIds) q = q.in('id_card', homeroomIds);
+        if (sFrom) q = q.gte('updated_at', sFrom + 'T00:00:00.000+07:00');
+        if (sTo)   q = q.lte('updated_at', sTo + 'T23:59:59.999+07:00');
 
         const { count } = await q;
         summary[s] = count || 0;
@@ -163,17 +174,86 @@ module.exports = async function handler(req, res) {
       if (year && year !== 'ALL') qPaid = qPaid.eq('year', String(year));
       if (term && term !== 'ALL') qPaid = qPaid.eq('term', String(term));
       if (homeroomIds) qPaid = qPaid.in('id_card', homeroomIds);
+      if (sFrom) qPaid = qPaid.gte('updated_at', sFrom + 'T00:00:00.000+07:00');
+      if (sTo)   qPaid = qPaid.lte('updated_at', sTo + 'T23:59:59.999+07:00');
 
       const { data: paidData } = await qPaid;
       summary.totalAmount = (paidData || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+      // ⭐ NEW: นับเปิด QR แล้วยังไม่จ่าย
+      let qPending = supabase.from('payments')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'รอชำระ')
+        .gt('qr_open_count', 0);
+      if (year && year !== 'ALL') qPending = qPending.eq('year', String(year));
+      if (term && term !== 'ALL') qPending = qPending.eq('term', String(term));
+      if (homeroomIds) qPending = qPending.in('id_card', homeroomIds);
+      const { count: qrPendingCount } = await qPending;
+      summary.qrOpenedNotPaid = qrPendingCount || 0;
 
       return ok(res, summary);
     }
 
     // ─────────────────────────────────────
+    // ⭐ NEW ACTION: qr-tracking → รายการที่เปิด QR แล้วยังไม่จ่าย
+    // ─────────────────────────────────────
+    if (action === 'qr-tracking') {
+      const minOpenCount = parseInt(req.query.minOpen || '1', 10);
+
+      let q = supabase
+        .from('payments')
+        .select('*')
+        .eq('status', 'รอชำระ')
+        .gte('qr_open_count', minOpenCount)
+        .order('qr_last_opened_at', { ascending: false })
+        .limit(200);
+
+      if (user.role === 'homeroom') {
+        const assigned = user.assignedClasses || [];
+        if (assigned.length === 0) return ok(res, { tracking: [], total: 0 });
+        const { data: stuList } = await supabase
+          .from('students').select('id_card').in('class', assigned);
+        const ids = (stuList || []).map(s => s.id_card);
+        if (ids.length === 0) return ok(res, { tracking: [], total: 0 });
+        q = q.in('id_card', ids);
+      }
+
+      const { data: rows, error } = await q;
+      if (error) return fail(res, error.message, 500);
+
+      const idCards = Array.from(new Set((rows || []).map(r => r.id_card)));
+      const { data: students } = idCards.length > 0
+        ? await supabase.from('students').select('id_card,name,class,student_id').in('id_card', idCards)
+        : { data: [] };
+      const stuMap = {};
+      (students || []).forEach(s => { stuMap[s.id_card] = s; });
+
+      const result = (rows || []).map(p => {
+        const s = stuMap[p.id_card] || {};
+        return {
+          transId: p.trans_id,
+          idCard: p.id_card,
+          studentName: s.name || '-',
+          studentClass: s.class || '-',
+          studentId: s.student_id || '',
+          title: p.title || '',
+          year: p.year || '',
+          term: p.term || '',
+          amount: Number(p.amount) || 0,
+          qrOpenedAt: p.qr_opened_at,
+          qrLastOpenedAt: p.qr_last_opened_at,
+          qrOpenCount: p.qr_open_count || 0,
+          createdAt: p.created_at
+        };
+      });
+
+      return ok(res, { tracking: result, total: result.length });
+    }
+
+    // ─────────────────────────────────────
     // DEFAULT: GET (พร้อม pagination)
     // ─────────────────────────────────────
-    const { status, cls, year, term, search, page, pageSize } = req.query;
+    const { status, cls, year, term, search, page, pageSize, dateFrom, dateTo } = req.query;
     const pageNum = Math.max(1, parseInt(page || '1', 10));
     const limit = Math.min(PAGE_SIZE_MAX, Math.max(10, parseInt(pageSize || PAGE_SIZE_DEFAULT, 10)));
     const offset = (pageNum - 1) * limit;
@@ -202,6 +282,10 @@ module.exports = async function handler(req, res) {
     if (year && year !== 'ALL') q = q.eq('year', String(year));
     if (term && term !== 'ALL') q = q.eq('term', String(term));
     if (homeroomIdCards) q = q.in('id_card', homeroomIdCards);
+
+    // ⭐ NEW: Date filter
+    if (dateFrom) q = q.gte('updated_at', dateFrom + 'T00:00:00.000+07:00');
+    if (dateTo)   q = q.lte('updated_at', dateTo + 'T23:59:59.999+07:00');
 
     // 2. Pagination
     q = q.range(offset, offset + limit - 1);
@@ -239,6 +323,11 @@ module.exports = async function handler(req, res) {
       receiptIssuedAt: p.receipt_issued_at || '',
       approvedBy: p.approved_by || '',
       approvedAt: p.approved_at || '',
+      // ⭐ NEW: Transfer + QR tracking
+      transferAt: p.transfer_at,
+      qrOpenedAt: p.qr_opened_at,
+      qrLastOpenedAt: p.qr_last_opened_at,
+      qrOpenCount: p.qr_open_count || 0,
       studentName: (stuMap[p.id_card] || {}).name || '-',
       studentId: (stuMap[p.id_card] || {}).student_id || '',
       studentClass: (stuMap[p.id_card] || {}).class || '-',

@@ -571,6 +571,16 @@
         <input type="text" id="payer" class="fin" placeholder="ชื่อ-นามสกุลผู้โอน">
       </div>
       <div class="fg">
+        <label><i class="fas fa-clock" style="color:#FF6B35"></i> วันที่และเวลาที่โอน <span style="color:#F44336">*</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <input type="date" id="transferDate" class="fin" required style="padding:10px">
+          <input type="time" id="transferTime" class="fin" required style="padding:10px">
+        </div>
+        <div style="font-size:.72rem;color:#888;margin-top:5px;display:flex;align-items:center;gap:4px">
+          <i class="fas fa-info-circle"></i> ดูที่สลิปการโอน — กรอกให้ตรงกับเวลาที่โอนจริง
+        </div>
+      </div>
+      <div class="fg">
         <label><i class="fas fa-image"></i> รูปสลิปการโอน</label>
         <input type="file" id="slipFile" class="fin" accept="image/*" style="padding:10px">
       </div>
@@ -1007,12 +1017,24 @@ function renderResult(data){
     var upH = showUp ? '<button class="btn-up" onclick="openModal(\''+p.transId+'\')"><i class="fas fa-cloud-upload-alt"></i> แจ้งโอนเงิน / อัปโหลดสลิป</button>' : '';
     var receiptH = showReceipt ? '<button class="btn-up" style="background:linear-gradient(135deg,#4CAF50,#2E7D32)" onclick="viewReceipt(\''+p.transId+'\')"><i class="fas fa-receipt"></i> ดู / พิมพ์ใบเสร็จ</button>' : '';
 
+    // ⭐ NEW: แสดงวันเวลาโอนถ้ามี (จาก slip ที่ผู้ปกครองอัปแล้ว)
+    var transferInfoH = '';
+    if (p.transferAt && (p.status === 'กำลังตรวจสอบ' || p.status === 'ชำระแล้ว')) {
+      var tDate = new Date(p.transferAt);
+      var dStr = tDate.toLocaleDateString('th-TH', { day:'2-digit', month:'short', year:'2-digit' });
+      var tStr = tDate.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+      transferInfoH = '<div style="background:#E3F2FD;color:#0D47A1;padding:8px 12px;border-radius:8px;margin-top:8px;font-size:.82rem;display:flex;align-items:center;gap:6px">'
+        + '<i class="fas fa-money-check-alt"></i> โอนเมื่อ <strong>' + dStr + ' ' + tStr + '</strong>'
+        + (p.payerName ? ' โดย ' + p.payerName : '')
+        + '</div>';
+    }
+
     card.innerHTML = '<div class="pbar '+bar+'"></div><div class="pb">'
       + '<div class="pt">'
       + '<div style="flex:1;min-width:0"><div class="ptit">'+p.title+'</div><div class="pmeta"><i class="fas fa-calendar-alt"></i> ปี '+p.year+' • เทอม '+p.term+'</div>'+docH+'</div>'
       + '<div style="text-align:right;flex-shrink:0"><div class="pamt">฿'+Number(p.amount).toLocaleString()+'</div>'
       + '<span class="pill '+pil+'">'+ico+' '+txt+'</span></div>'
-      + '</div>'+note+qrH+upH+receiptH+'</div>';
+      + '</div>'+note+transferInfoH+qrH+upH+receiptH+'</div>';
     list.appendChild(card);
 
     if(showQR){
@@ -1058,6 +1080,15 @@ function renderResult(data){
             }
             svg += '</svg>';
             el.innerHTML = svg;
+
+            // ⭐ NEW: Track เปิด QR (fire and forget)
+            try {
+              fetch('/api/student/search?action=track-qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transId: payment.transId })
+              }).catch(function(){});
+            } catch(e){}
           } catch(err){
             el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ สร้าง QR ไม่สำเร็จ: '+err.message+'</div>';
           }
@@ -1075,6 +1106,15 @@ function openModal(tid){
   document.getElementById('utid').value  = tid;
   document.getElementById('payer').value = '';
   document.getElementById('slipFile').value = '';
+  // ⭐ NEW: Set default date/time = ตอนนี้
+  var now = new Date();
+  var dateStr = now.toISOString().split('T')[0];
+  var hh = String(now.getHours()).padStart(2,'0');
+  var mn = String(now.getMinutes()).padStart(2,'0');
+  var dateInput = document.getElementById('transferDate');
+  var timeInput = document.getElementById('transferTime');
+  if (dateInput) { dateInput.value = dateStr; dateInput.max = dateStr; }
+  if (timeInput) { timeInput.value = hh + ':' + mn; }
   document.getElementById('upModal').classList.add('open');
 }
 function closeModal(){ document.getElementById('upModal').classList.remove('open'); }
@@ -1088,7 +1128,21 @@ function doUpload(){
   var fi      = document.getElementById('slipFile');
   var btn     = document.getElementById('btnSub');
   var transId = document.getElementById('utid').value;
+  var transferDate = document.getElementById('transferDate') ? document.getElementById('transferDate').value : '';
+  var transferTime = document.getElementById('transferTime') ? document.getElementById('transferTime').value : '';
+
   if(!payer)         { toast('กรุณากรอกชื่อผู้โอน','exclamation-triangle'); return; }
+  // ⭐ NEW: บังคับวันเวลา
+  if(!transferDate || !transferTime){
+    Swal.fire({icon:'warning',title:'กรอกวันเวลาโอน',text:'กรุณาระบุวันและเวลาที่โอนเงิน ตามที่ระบุในสลิป',confirmButtonColor:'#FF6B35'});
+    return;
+  }
+  // ตรวจไม่เป็นอนาคต
+  var tDT = new Date(transferDate + 'T' + transferTime + ':00');
+  if (tDT > new Date()){
+    Swal.fire({icon:'warning',title:'วันเวลาไม่ถูกต้อง',text:'วันเวลาโอนต้องไม่เป็นอนาคต',confirmButtonColor:'#FF6B35'});
+    return;
+  }
   if(!fi.files.length){ toast('กรุณาเลือกไฟล์สลิป','exclamation-triangle'); return; }
 
   var file = fi.files[0];
@@ -1103,7 +1157,13 @@ function doUpload(){
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
       return api('/payment/upload-slip', {
         method: 'POST',
-        body: { transId: transId, payerName: payer, slipUrl: slipUrl }
+        body: {
+          transId: transId,
+          payerName: payer,
+          slipUrl: slipUrl,
+          transferDate: transferDate,
+          transferTime: transferTime
+        }
       });
     })
     .then(function(){

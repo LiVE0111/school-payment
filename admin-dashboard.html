@@ -123,6 +123,7 @@
 <!-- TABS -->
 <div class="tnw"><div class="tni">
   <button class="tb2 nav-tab-btn active" onclick="sw('pay',this)"><i class="fas fa-money-bill-wave"></i> รายการชำระ</button>
+  <button class="tb2 nav-tab-btn" onclick="sw('qr',this);loadQRTracking()"><i class="fas fa-qrcode"></i> เปิด QR ยังไม่จ่าย <span id="qrTrackingBadge" style="display:none;background:#FF9800;color:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;margin-left:4px"></span></button>
   <button class="tb2 nav-tab-btn" onclick="sw('bill',this);onBillTab()"><i class="fas fa-file-invoice"></i> แจ้งหนี้</button>
   <button class="tb2 nav-tab-btn" onclick="sw('std',this);loadStudents()"><i class="fas fa-users"></i> นักเรียน</button>
   <button class="tb2 nav-tab-btn" onclick="sw('cls',this);loadClasses()"><i class="fas fa-chalkboard"></i> ห้องเรียน</button>
@@ -165,6 +166,14 @@
         <select id="fCls" onchange="loadPay(true)"><option value="ALL">ทุกห้อง</option></select>
         <select id="fYear" onchange="loadPay(true)"><option value="ALL">ทุกปี</option></select>
         <select id="fTerm" onchange="loadPay(true)"><option value="ALL">ทุกเทอม</option><option value="1">เทอม 1</option><option value="2">เทอม 2</option></select>
+        <input type="date" id="fDateFrom" onchange="loadPay(true)" title="ตั้งแต่วันที่" style="max-width:150px">
+        <input type="date" id="fDateTo" onchange="loadPay(true)" title="ถึงวันที่" style="max-width:150px">
+        <button class="boo" onclick="setQuickDate('today')" title="วันนี้" style="padding:6px 10px;font-size:.78rem">วันนี้</button>
+        <button class="boo" onclick="setQuickDate('yesterday')" title="เมื่อวาน" style="padding:6px 10px;font-size:.78rem">เมื่อวาน</button>
+        <button class="boo" onclick="setQuickDate('week')" title="7 วันล่าสุด" style="padding:6px 10px;font-size:.78rem">7 วัน</button>
+        <button class="boo" onclick="setQuickDate('month')" title="เดือนนี้" style="padding:6px 10px;font-size:.78rem">เดือนนี้</button>
+        <button class="boo" onclick="document.getElementById('fDateFrom').value='';document.getElementById('fDateTo').value='';loadPay(true)" title="ล้างวันที่"><i class="fas fa-calendar-times"></i></button>
+        <button class="bo" style="background:linear-gradient(135deg,#FF9800,#F57C00)" onclick="openCashEntry()"><i class="fas fa-money-bill-wave"></i> บันทึกเงินสด</button>
         <button class="bo" onclick="expExcel()"><i class="fas fa-file-excel"></i> Excel</button>
       </div>
 
@@ -185,6 +194,39 @@
         <tbody id="payTb"></tbody>
       </table></div>
       <div id="payPagination"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: QR TRACKING -->
+<div class="tp" id="tab-qr">
+  <div class="pg">
+    <div class="co cot">
+      <div class="st"><i class="fas fa-qrcode"></i> รายการที่เปิด QR แล้วยังไม่อัปสลิป</div>
+      <div style="background:#FFF3E0;border-left:4px solid #FF9800;padding:12px;border-radius:8px;margin-bottom:14px;font-size:.85rem">
+        <strong style="color:#E65100"><i class="fas fa-info-circle"></i> ฟีเจอร์นี้ใช้ตรวจสอบนักเรียนที่อาจโอนเงินแล้ว แต่ลืมแนบสลิป</strong>
+        <ul style="margin:6px 0 0 18px;padding:0;color:#E65100">
+          <li>ระบบบันทึกทุกครั้งที่ผู้ปกครองกดดู QR Code</li>
+          <li>ถ้าเปิด QR แล้วไม่อัปสลิปนาน → อาจโอนแล้วแต่ลืมแจ้ง</li>
+          <li>Admin ตรวจกับ Statement ของ KTB → ถ้าเงินเข้าจริง กด "บันทึกเงินสด"</li>
+        </ul>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <button class="bo" onclick="loadQRTracking()"><i class="fas fa-sync"></i> รีเฟรช</button>
+        <div style="font-size:.85rem;color:#666;margin-left:auto">พบ <strong id="qrTrackingCount">0</strong> รายการ</div>
+      </div>
+      <div class="twrap"><table class="dt">
+        <thead><tr>
+          <th>ชื่อ-สกุล</th>
+          <th>ห้อง</th>
+          <th>รายการ</th>
+          <th style="text-align:right">ยอด</th>
+          <th>เปิด QR ครั้งล่าสุด</th>
+          <th style="text-align:center">ครั้ง</th>
+          <th>จัดการ</th>
+        </tr></thead>
+        <tbody id="qrTrackingTb"><tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">โหลด...</td></tr></tbody>
+      </table></div>
     </div>
   </div>
 </div>
@@ -603,11 +645,20 @@ function loadPay(resetPage){
   var sc = (document.getElementById('fSearch')||{}).value || '';
   if (sc.trim()) qs.push('search=' + encodeURIComponent(sc.trim()));
 
+  // ⭐ NEW: Date filter
+  var df = document.getElementById('fDateFrom');
+  var dt = document.getElementById('fDateTo');
+  if (df && df.value) qs.push('dateFrom=' + encodeURIComponent(df.value));
+  if (dt && dt.value) qs.push('dateTo=' + encodeURIComponent(dt.value));
+
   // ⭐ โหลด stats summary แยก (รวมทั้งระบบ ไม่ใช่แค่หน้านี้)
-  api('/admin/payments?action=summary&'
-    + 'year=' + encodeURIComponent(document.getElementById('fYear').value)
-    + '&term=' + encodeURIComponent(document.getElementById('fTerm').value)
-  ).then(renderStatsFromSummary).catch(function(){});
+  var summaryQs = 'action=summary'
+    + '&year=' + encodeURIComponent(document.getElementById('fYear').value)
+    + '&term=' + encodeURIComponent(document.getElementById('fTerm').value);
+  if (df && df.value) summaryQs += '&dateFrom=' + encodeURIComponent(df.value);
+  if (dt && dt.value) summaryQs += '&dateTo=' + encodeURIComponent(dt.value);
+
+  api('/admin/payments?' + summaryQs).then(renderStatsFromSummary).catch(function(){});
 
   api('/admin/payments?' + qs.join('&'))
     .then(function(d){
@@ -658,12 +709,20 @@ function changePageSize(n){
 }
 
 function renderStatsFromSummary(s){
+  var qrCard = '';
+  if ((s.qrOpenedNotPaid || 0) > 0) {
+    qrCard = '<div class="stat" style="cursor:pointer;border:2px solid #FF9800;background:linear-gradient(135deg,#FFF8F0,#fff)" onclick="document.querySelector(\'[onclick*=\\\'qr\\\']\').click()" title="คลิกเพื่อดูรายละเอียด">'
+      + '<div class="n" style="color:#E65100">'+((s.qrOpenedNotPaid||0)).toLocaleString()+'</div>'
+      + '<div class="l" style="color:#E65100"><i class="fas fa-qrcode"></i> เปิด QR ยังไม่จ่าย</div>'
+      + '</div>';
+  }
   document.getElementById('statGrid').innerHTML =
     '<div class="stat"><div class="n">'+(s.total||0).toLocaleString()+'</div><div class="l">ทั้งหมด</div></div>'+
     '<div class="stat"><div class="n">'+((s['รอชำระ']||0)).toLocaleString()+'</div><div class="l">รอชำระ</div></div>'+
     '<div class="stat"><div class="n">'+((s['กำลังตรวจสอบ']||0)).toLocaleString()+'</div><div class="l">รอตรวจสอบ</div></div>'+
     '<div class="stat"><div class="n">'+((s['ชำระแล้ว']||0)).toLocaleString()+'</div><div class="l">ชำระแล้ว</div></div>'+
     '<div class="stat"><div class="n">'+((s['ชำระไม่สำเร็จ']||0)).toLocaleString()+'</div><div class="l">ไม่ผ่าน</div></div>'+
+    qrCard +
     '<div class="stat"><div class="n">฿'+Math.round(s.totalAmount||0).toLocaleString()+'</div><div class="l">รวมรับ</div></div>';
   // animation: count up
   if (typeof animateStats === 'function') setTimeout(animateStats, 50);
@@ -718,7 +777,7 @@ function renderPay(d){
     if(r.status==='รอชำระ') act+='<button class="bic bca" title="รับเงินสด" onclick="doCash(\''+r.transId+'\')"><i class="fas fa-money-bill"></i></button>';
     if(r.status==='ชำระแล้ว') act+='<button class="bic" title="ใบเสร็จ" style="background:#4CAF50" onclick="adminViewReceipt(\''+r.transId+'\')"><i class="fas fa-receipt"></i></button>';
 
-    var t = r.timestamp ? new Date(r.timestamp).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'}) : '-';
+    var t = fmtThaiDateTime(r.timestamp, false);
     var canBulk = (r.status==='กำลังตรวจสอบ' || r.status==='ชำระไม่สำเร็จ' || r.status==='รอชำระ');
 
     // ⭐ แสดงชื่อผู้อนุมัติเมื่อชำระแล้ว
@@ -730,6 +789,29 @@ function renderPay(d){
       approverHtml = '<div style="font-size:.7rem;color:#F44336;margin-top:3px;display:flex;align-items:center;gap:3px"><i class="fas fa-user-times" style="font-size:.65rem"></i> '+r.approvedBy+'</div>';
     }
 
+    // ⭐ NEW: แสดงวันเวลาโอนจากผู้ปกครอง
+    var transferHtml = '';
+    if (r.transferAt) {
+      transferHtml = '<div style="font-size:.7rem;color:#2196F3;margin-top:3px;display:flex;align-items:center;gap:3px"'
+        + ' title="วันเวลาที่ผู้ปกครองโอนเงิน">'
+        + '<i class="fas fa-money-check-alt" style="font-size:.65rem"></i> โอน: '
+        + fmtThaiDateTime(r.transferAt, true)
+        + '</div>';
+    }
+
+    // ⭐ NEW: แสดงเปิด QR แล้วยังไม่จ่าย
+    var qrHtml = '';
+    if (r.qrOpenCount > 0 && r.status === 'รอชำระ') {
+      qrHtml = '<div style="font-size:.7rem;color:#FF9800;margin-top:3px;display:flex;align-items:center;gap:3px"'
+        + ' title="เปิด QR แล้ว '+r.qrOpenCount+' ครั้ง">'
+        + '<i class="fas fa-qrcode" style="font-size:.65rem"></i> เปิด QR '
+        + fmtThaiDateTime(r.qrLastOpenedAt, false)
+        + ' <span style="background:#FF9800;color:white;padding:0 5px;border-radius:8px">×'+r.qrOpenCount+'</span>'
+        + '</div>';
+    }
+
+    var timeCell = '<div style="white-space:nowrap"><div>'+t+'</div>'+transferHtml+qrHtml+'</div>';
+
     html += '<tr>'
       +'<td>'+(canBulk ? '<input type="checkbox" class="bulkRowCb" data-id="'+r.transId+'" onchange="toggleBulkRow(\''+r.transId+'\',this.checked)">' : '')+'</td>'
       +'<td>'+(r.studentName||'-')+'</td>'
@@ -739,7 +821,7 @@ function renderPay(d){
       +'<td style="text-align:right;font-weight:600">฿'+Number(r.amount).toLocaleString()+'</td>'
       +'<td><span class="pl-st '+cls+'">'+txt+'</span>'+approverHtml+'</td>'
       +'<td>'+(r.payerName||'-')+'</td>'
-      +'<td>'+t+'</td>'
+      +'<td>'+timeCell+'</td>'
       +'<td>'+act+'</td>'
       +'</tr>';
   });
@@ -889,6 +971,24 @@ function openSlip(tid){
     { l:'Trans ID',  v: '<code style="font-size:.74rem;color:#888">' + p.transId + '</code>' }
   ];
 
+  // ⭐ NEW: ถ้ามีวันเวลาโอน (ผู้ปกครองกรอก)
+  if (p.transferAt) {
+    rows.push({
+      l: 'วันเวลาโอน',
+      v: '<span style="color:#2196F3;font-weight:600"><i class="fas fa-money-check-alt"></i> ' + fmtThaiDateTime(p.transferAt, true) + '</span>'
+         + '<div style="font-size:.7rem;color:#999;margin-top:2px">(จากที่ผู้ปกครองกรอก)</div>'
+    });
+  }
+
+  // ⭐ NEW: ถ้ามีประวัติการเปิด QR
+  if (p.qrOpenCount > 0) {
+    rows.push({
+      l: 'เปิด QR',
+      v: '<span style="color:#FF9800;font-weight:600"><i class="fas fa-qrcode"></i> ' + p.qrOpenCount + ' ครั้ง</span>'
+         + (p.qrLastOpenedAt ? '<div style="font-size:.72rem;color:#999;margin-top:2px">ล่าสุด: ' + fmtThaiDateTime(p.qrLastOpenedAt, true) + ' (' + fmtRelative(p.qrLastOpenedAt) + ')</div>' : '')
+    });
+  }
+
   // ⭐ ถ้ามีผู้อนุมัติแล้ว
   if (p.approvedBy) {
     var apprAt = p.approvedAt ? new Date(p.approvedAt).toLocaleString('th-TH', { dateStyle:'short', timeStyle:'short' }) : '';
@@ -940,6 +1040,12 @@ function expExcel(){
     if (yr !== 'ALL') qs.set('year', yr);
     if (tm !== 'ALL') qs.set('term', tm);
     if (sc) qs.set('search', sc);
+
+    // ⭐ NEW: Date filter ใน Export
+    var df = document.getElementById('fDateFrom');
+    var dt = document.getElementById('fDateTo');
+    if (df && df.value) qs.set('dateFrom', df.value);
+    if (dt && dt.value) qs.set('dateTo', dt.value);
 
     var url = '/api/admin/payments?' + qs.toString();
     var token = localStorage.getItem('adminToken') || '';
@@ -1295,6 +1401,31 @@ function renderStd(d){
       +'</tr>';
   }).join('');
   if (typeof staggerTableRows === 'function') staggerTableRows('stdTb');
+}
+
+// ⭐ NEW: format วันเวลาไทย พ.ศ.
+function fmtThaiDateTime(iso, withSec) {
+  if (!iso) return '-';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '-';
+  var dd = String(d.getDate()).padStart(2, '0');
+  var mm = String(d.getMonth() + 1).padStart(2, '0');
+  var yy = String((d.getFullYear() + 543) % 100).padStart(2, '0');
+  var hh = String(d.getHours()).padStart(2, '0');
+  var mn = String(d.getMinutes()).padStart(2, '0');
+  var str = dd + '/' + mm + '/' + yy + ' ' + hh + ':' + mn;
+  if (withSec) str += ':' + String(d.getSeconds()).padStart(2, '0');
+  return str;
+}
+
+function fmtRelative(iso) {
+  if (!iso) return '';
+  var diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return 'เมื่อสักครู่';
+  if (diff < 3600) return Math.floor(diff/60) + ' นาทีที่แล้ว';
+  if (diff < 86400) return Math.floor(diff/3600) + ' ชม.ที่แล้ว';
+  if (diff < 86400*7) return Math.floor(diff/86400) + ' วันที่แล้ว';
+  return '';
 }
 
 function escapeJs(s){ return String(s||'').replace(/'/g, "\\'").replace(/"/g, '\\"'); }
@@ -2608,6 +2739,277 @@ function showCredit(){
     width: 360
   });
 }
+
+// ⭐ NEW: Quick date filter (วันนี้, เมื่อวาน, 7 วัน, เดือนนี้)
+function setQuickDate(mode) {
+  var df = document.getElementById('fDateFrom');
+  var dt = document.getElementById('fDateTo');
+  if (!df || !dt) return;
+
+  var now = new Date();
+  var pad = function(n){ return String(n).padStart(2,'0'); };
+  var fmt = function(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
+
+  if (mode === 'today') {
+    df.value = fmt(now);
+    dt.value = fmt(now);
+  } else if (mode === 'yesterday') {
+    var y = new Date(now); y.setDate(y.getDate() - 1);
+    df.value = fmt(y);
+    dt.value = fmt(y);
+  } else if (mode === 'week') {
+    var w = new Date(now); w.setDate(w.getDate() - 6);
+    df.value = fmt(w);
+    dt.value = fmt(now);
+  } else if (mode === 'month') {
+    var m = new Date(now.getFullYear(), now.getMonth(), 1);
+    df.value = fmt(m);
+    dt.value = fmt(now);
+  }
+  loadPay(true);
+}
+
+// ════════════════════════════════════════════════════════════
+// ⭐ CASH ENTRY — บันทึกชำระเงินสด (ค้นชื่อ → เลือกบิล)
+// ════════════════════════════════════════════════════════════
+function openCashEntry() {
+  if (!window.allStudents || window.allStudents.length === 0) {
+    if (typeof loading === 'function') loading(true, 'กำลังโหลดรายชื่อนักเรียน...');
+    api('/admin/students?status=ALL').then(function(r) {
+      window.allStudents = r.students || [];
+      if (typeof loading === 'function') loading(false);
+      openCashEntryModal();
+    }).catch(function(e) {
+      if (typeof loading === 'function') loading(false);
+      Swal.fire('Error', 'โหลดรายชื่อไม่สำเร็จ: ' + e.message, 'error');
+    });
+  } else {
+    openCashEntryModal();
+  }
+}
+
+function openCashEntryModal() {
+  Swal.fire({
+    title: '<i class="fas fa-money-bill-wave" style="color:#FF9800"></i> บันทึกชำระเงินสด',
+    html:
+      '<div style="text-align:left;font-size:.9rem">'
+      + '<div style="background:#FFF3E0;padding:10px;border-radius:8px;margin-bottom:14px;font-size:.85rem;color:#E65100">'
+      +   '<i class="fas fa-info-circle"></i> ค้นนักเรียนจากชื่อ/รหัส/เลขบัตร แล้วเลือกบิลที่ค้างชำระ'
+      + '</div>'
+      + '<label style="font-weight:600">🔍 ค้นหานักเรียน</label>'
+      + '<input id="cashSearchInput" class="swal2-input" placeholder="ชื่อ / เลขบัตร / รหัสนักเรียน" style="width:100%;margin:6px 0" autofocus>'
+      + '<div id="cashSearchResults" style="max-height:240px;overflow-y:auto;border:1px solid #E0E0E0;border-radius:8px;display:none"></div>'
+      + '<div id="cashBills" style="margin-top:12px"></div>'
+      + '</div>',
+    width: 580,
+    showCancelButton: true,
+    showConfirmButton: false,
+    cancelButtonText: 'ปิด',
+    didOpen: function() {
+      var input = document.getElementById('cashSearchInput');
+      var resultsDiv = document.getElementById('cashSearchResults');
+      var billsDiv = document.getElementById('cashBills');
+      var debounceTimer = null;
+
+      input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        var q = input.value.trim();
+        if (q.length < 2) {
+          resultsDiv.style.display = 'none';
+          billsDiv.innerHTML = '';
+          return;
+        }
+        debounceTimer = setTimeout(function() {
+          var lower = q.toLowerCase();
+          var matches = (window.allStudents || []).filter(function(s) {
+            return (s.name || '').toLowerCase().includes(lower)
+                || (s.idCard || '').includes(q)
+                || (s.studentId || '').includes(q);
+          }).slice(0, 15);
+
+          if (matches.length === 0) {
+            resultsDiv.innerHTML = '<div style="padding:14px;text-align:center;color:#999">ไม่พบนักเรียน</div>';
+          } else {
+            resultsDiv.innerHTML = matches.map(function(s) {
+              return '<div class="cashStuItem"'
+                + ' data-id="' + s.idCard + '"'
+                + ' data-name="' + escapeJs(s.name || '') + '"'
+                + ' data-class="' + (s.class || '') + '"'
+                + ' style="padding:10px 12px;border-bottom:1px solid #F0F0F0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:white">'
+                + '<div>'
+                +   '<div style="font-weight:600;font-size:.9rem">' + (s.name || '-') + '</div>'
+                +   '<div style="font-size:.75rem;color:#666">' + (s.class || '-') + ' · ' + s.idCard + '</div>'
+                + '</div>'
+                + '<i class="fas fa-chevron-right" style="color:#FF6B35"></i>'
+                + '</div>';
+            }).join('');
+            setTimeout(function() {
+              document.querySelectorAll('.cashStuItem').forEach(function(el) {
+                el.addEventListener('mouseover', function() { this.style.background = '#FFF8F2'; });
+                el.addEventListener('mouseout', function() { this.style.background = 'white'; });
+                el.addEventListener('click', function() {
+                  loadStudentBillsForCash(
+                    el.getAttribute('data-id'),
+                    el.getAttribute('data-name'),
+                    el.getAttribute('data-class')
+                  );
+                });
+              });
+            }, 50);
+          }
+          resultsDiv.style.display = 'block';
+        }, 250);
+      });
+    }
+  });
+}
+
+function loadStudentBillsForCash(idCard, name, cls) {
+  var resultsDiv = document.getElementById('cashSearchResults');
+  var billsDiv = document.getElementById('cashBills');
+  if (resultsDiv) resultsDiv.style.display = 'none';
+  if (document.getElementById('cashSearchInput')) document.getElementById('cashSearchInput').value = '';
+  billsDiv.innerHTML = '<div style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</div>';
+
+  api('/admin/students?action=payment-history&idCard=' + encodeURIComponent(idCard))
+    .then(function(r) {
+      var pending = (r.payments || []).filter(function(p) {
+        return p.status === 'รอชำระ' || p.status === 'กำลังตรวจสอบ' || p.status === 'ชำระไม่สำเร็จ';
+      });
+
+      var html = '<div style="background:linear-gradient(135deg,#FFF3E0,#fff);padding:12px;border-radius:10px;margin-bottom:10px;border-left:4px solid #FF9800">'
+        + '<div style="font-weight:600;font-size:.95rem">' + name + '</div>'
+        + '<div style="font-size:.78rem;color:#666;margin-top:2px">' + cls + ' · <code>' + idCard + '</code></div>'
+        + '</div>';
+
+      if (pending.length === 0) {
+        html += '<div style="text-align:center;padding:24px;color:#999;background:#F5F5F5;border-radius:10px">'
+          + '<i class="fas fa-check-circle" style="font-size:2rem;color:#4CAF50;margin-bottom:8px"></i>'
+          + '<div>ไม่มีบิลค้างชำระ</div></div>';
+      } else {
+        html += '<div style="font-weight:600;margin-bottom:8px;font-size:.85rem;color:#E65100"><i class="fas fa-list"></i> บิลค้างชำระ (' + pending.length + ')</div>';
+        html += pending.map(function(p) {
+          var sc = p.status === 'รอชำระ' ? '#FF9800' : (p.status === 'กำลังตรวจสอบ' ? '#2196F3' : '#F44336');
+          return '<div style="background:white;border:1px solid #FFE0B2;padding:10px 12px;border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px">'
+            + '<div style="flex:1;min-width:0">'
+            +   '<div style="font-weight:500;font-size:.85rem">' + (p.title || 'ค่าบำรุงการศึกษา') + '</div>'
+            +   '<div style="font-size:.72rem;color:#666;margin-top:2px">ปี ' + p.year + '/' + p.term + ' · <span style="color:' + sc + ';font-weight:600">' + p.status + '</span></div>'
+            + '</div>'
+            + '<div style="text-align:right">'
+            +   '<div style="font-weight:700;color:#FF6B35;font-size:.95rem">฿' + Number(p.amount || 0).toLocaleString() + '</div>'
+            +   '<button class="bo" style="padding:5px 10px;font-size:.75rem;background:#FF9800;margin-top:4px"'
+            +     ' onclick="confirmCashEntry(\'' + p.trans_id + '\', \'' + escapeJs(name) + '\', ' + (p.amount || 0) + ')">'
+            +     '<i class="fas fa-money-bill"></i> เงินสด'
+            +   '</button>'
+            + '</div>'
+            + '</div>';
+        }).join('');
+      }
+      billsDiv.innerHTML = html;
+    })
+    .catch(function(e) {
+      billsDiv.innerHTML = '<div style="color:#F44336;padding:14px;text-align:center"><i class="fas fa-exclamation-triangle"></i> Error: ' + e.message + '</div>';
+    });
+}
+
+function confirmCashEntry(transId, name, amount) {
+  Swal.fire({
+    title: 'บันทึกชำระเงินสด?',
+    html: '<div style="text-align:left;padding:6px">'
+      + '<div style="margin-bottom:6px"><strong>นักเรียน:</strong> ' + name + '</div>'
+      + '<div><strong>ยอด:</strong> <span style="color:#FF6B35;font-size:1.1rem;font-weight:700">฿' + Number(amount).toLocaleString() + '</span></div>'
+      + '<div style="font-size:.8rem;color:#666;margin-top:8px;padding:8px;background:#FFF3E0;border-radius:6px">'
+      +   '<i class="fas fa-info-circle"></i> ระบบจะบันทึกเป็น "เงินสด"'
+      + '</div></div>',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: '<i class="fas fa-check"></i> ยืนยัน',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#FF9800'
+  }).then(function(r) {
+    if (!r.isConfirmed) return;
+    actionPayment(transId, 'cash').then(function() {
+      Swal.fire({
+        icon: 'success', title: 'บันทึกแล้ว!',
+        html: '<i class="fas fa-money-bill" style="color:#FF9800"></i> โดย <strong>' + (adminName || 'Admin') + '</strong>',
+        timer: 2500, showConfirmButton: false, toast: true, position: 'top-end'
+      });
+      if (typeof loadPay === 'function') loadPay();
+      if (typeof loadQRTracking === 'function') loadQRTracking();
+    }).catch(function(e) { Swal.fire('Error', e.message, 'error'); });
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// ⭐ QR TRACKING — รายการที่เปิด QR แล้วยังไม่จ่าย
+// ════════════════════════════════════════════════════════════
+function loadQRTracking() {
+  var tb = document.getElementById('qrTrackingTb');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</td></tr>';
+
+  api('/admin/payments?action=qr-tracking').then(function(r) {
+    var list = r.tracking || [];
+    var cnt = document.getElementById('qrTrackingCount');
+    var badge = document.getElementById('qrTrackingBadge');
+    if (cnt) cnt.textContent = list.length;
+    if (badge) {
+      if (list.length > 0) { badge.style.display = 'inline-block'; badge.textContent = list.length; }
+      else { badge.style.display = 'none'; }
+    }
+
+    if (list.length === 0) {
+      tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px"><i class="fas fa-check-circle" style="font-size:2rem;color:#4CAF50"></i><br><br>ไม่มีรายการ — ทุกคนแนบสลิปครบ</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = list.map(function(p) {
+      var lastOpen = fmtThaiDateTime(p.qrLastOpenedAt, true);
+      var relTime = fmtRelative(p.qrLastOpenedAt);
+      var urgentColor = (p.qrOpenCount >= 3) ? '#F44336' : (p.qrOpenCount >= 2 ? '#FF9800' : '#666');
+
+      return '<tr>'
+        + '<td>' + (p.studentName || '-') + '</td>'
+        + '<td>' + (p.studentClass || '-') + '</td>'
+        + '<td>' + (p.title || '-') + '<div style="font-size:.7rem;color:#999">ปี ' + p.year + '/' + p.term + '</div></td>'
+        + '<td style="text-align:right;font-weight:600;color:#FF6B35">฿' + Number(p.amount || 0).toLocaleString() + '</td>'
+        + '<td><div style="font-size:.82rem">' + lastOpen + '</div><div style="font-size:.7rem;color:#999">' + relTime + '</div></td>'
+        + '<td style="text-align:center"><span style="background:' + urgentColor + ';color:white;padding:3px 10px;border-radius:10px;font-weight:600;font-size:.82rem">' + p.qrOpenCount + '</span></td>'
+        + '<td>'
+        +   '<button class="bic" style="background:#FF9800" title="บันทึกเงินสด" onclick="confirmCashEntry(\'' + p.transId + '\',\'' + escapeJs(p.studentName) + '\',' + (p.amount || 0) + ')"><i class="fas fa-money-bill"></i></button>'
+        + '</td>'
+        + '</tr>';
+    }).join('');
+  }).catch(function(e) {
+    tb.innerHTML = '<tr><td colspan="7" style="color:#F44336;padding:20px;text-align:center">Error: ' + e.message + '</td></tr>';
+  });
+}
+
+// Auto refresh QR badge ทุก 5 นาที
+(function() {
+  setTimeout(function() {
+    if (!localStorage.getItem('adminToken')) return;
+    api('/admin/payments?action=qr-tracking').then(function(r) {
+      var badge = document.getElementById('qrTrackingBadge');
+      if (badge && (r.tracking || []).length > 0) {
+        badge.style.display = 'inline-block';
+        badge.textContent = r.tracking.length;
+      }
+    }).catch(function() {});
+  }, 3000);
+
+  setInterval(function() {
+    if (!localStorage.getItem('adminToken')) return;
+    api('/admin/payments?action=qr-tracking').then(function(r) {
+      var badge = document.getElementById('qrTrackingBadge');
+      if (badge) {
+        var n = (r.tracking || []).length;
+        if (n > 0) { badge.style.display = 'inline-block'; badge.textContent = n; }
+        else { badge.style.display = 'none'; }
+      }
+    }).catch(function() {});
+  }, 5 * 60 * 1000);
+})();
 </script>
 
 <button onclick="showCredit()" title="เกี่ยวกับ" style="position:fixed;bottom:14px;left:14px;width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,107,53,.15);color:#FF6B35;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;z-index:100;transition:all .2s ease;backdrop-filter:blur(8px)" onmouseover="this.style.background='rgba(255,107,53,.3)';this.style.transform='scale(1.1)'" onmouseout="this.style.background='rgba(255,107,53,.15)';this.style.transform='scale(1)'">
