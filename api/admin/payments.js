@@ -23,11 +23,11 @@ module.exports = async function handler(req, res) {
     // ACTION: export → Streaming CSV
     // ─────────────────────────────────────
     if (action === 'export') {
-      const { status, cls, year, term, search, dateFrom, dateTo } = req.query;
+      const { status, cls, year, term, search, dateFrom, dateTo, payMethod } = req.query;
 
       const headers = [
         'เลขที่ใบเสร็จ', 'ห้อง', 'รหัสนักเรียน', 'ชื่อ-สกุล', 'เลขบัตรประชาชน',
-        'รายการ', 'ปี', 'เทอม', 'จำนวนเงิน', 'สถานะ',
+        'รายการ', 'ปี', 'เทอม', 'จำนวนเงิน', 'สถานะ', 'วิธีชำระ',
         'ชื่อผู้ชำระ', 'วันเวลาโอน (ผู้ปกครอง)', 'เปิด QR ครั้งล่าสุด', 'จำนวนครั้งเปิด QR',
         'Ref.1', 'Ref.2', 'อนุมัติโดย', 'วันที่อนุมัติ',
         'วันที่อัปเดต', 'หมายเหตุ', 'ประเภทบิล'
@@ -88,11 +88,28 @@ module.exports = async function handler(req, res) {
           const stu = stuMap[p.id_card] || {};
           if (cls && cls !== 'ALL' && stu.class !== cls) return;
 
+          // ⭐ NEW: payMethod filter (cash | transfer | all)
+          const isCash = (p.reason === 'ชำระเงินสด');
+          if (payMethod === 'cash' && !isCash) return;
+          if (payMethod === 'transfer' && (isCash || p.status !== 'ชำระแล้ว')) return;
+
           if (search && search.trim()) {
             const q = search.trim().toLowerCase();
             const hay = [stu.name, stu.student_id, p.id_card, p.ref1, p.ref2, p.receipt_no, p.payer_name]
               .filter(Boolean).join(' ').toLowerCase();
             if (!hay.includes(q)) return;
+          }
+
+          // ⭐ วิธีชำระ
+          let payMethodLabel = '-';
+          if (p.status === 'ชำระแล้ว') {
+            payMethodLabel = isCash ? '💵 เงินสด' : '💳 โอน/QR';
+          } else if (p.status === 'กำลังตรวจสอบ') {
+            payMethodLabel = '💳 โอน (รอตรวจ)';
+          } else if (p.status === 'รอชำระ') {
+            payMethodLabel = '⏳ ยังไม่จ่าย';
+          } else if (p.status === 'ชำระไม่สำเร็จ') {
+            payMethodLabel = '❌ ไม่ผ่าน';
           }
 
           const row = [
@@ -106,12 +123,11 @@ module.exports = async function handler(req, res) {
             p.term || '',
             Number(p.amount || 0).toFixed(2),
             p.status || '',
+            payMethodLabel,         // ⭐ NEW
             p.payer_name || '',
-            // ⭐ NEW
             p.transfer_at ? p.transfer_at.slice(0, 19).replace('T', ' ') : '',
             p.qr_last_opened_at ? p.qr_last_opened_at.slice(0, 19).replace('T', ' ') : '',
             p.qr_open_count || 0,
-            // ─── เดิม ───
             p.ref1 || '',
             p.ref2 || '',
             p.approved_by || '',
@@ -253,7 +269,7 @@ module.exports = async function handler(req, res) {
     // ─────────────────────────────────────
     // DEFAULT: GET (พร้อม pagination)
     // ─────────────────────────────────────
-    const { status, cls, year, term, search, page, pageSize, dateFrom, dateTo } = req.query;
+    const { status, cls, year, term, search, page, pageSize, dateFrom, dateTo, payMethod } = req.query;
     const pageNum = Math.max(1, parseInt(page || '1', 10));
     const limit = Math.min(PAGE_SIZE_MAX, Math.max(10, parseInt(pageSize || PAGE_SIZE_DEFAULT, 10)));
     const offset = (pageNum - 1) * limit;
@@ -337,6 +353,13 @@ module.exports = async function handler(req, res) {
     // 4. Filter ในเมมโมรี (สำหรับ class + search ที่ต้อง join)
     if (cls && cls !== 'ALL') {
       result = result.filter(r => r.studentClass === cls);
+    }
+
+    // ⭐ NEW: payMethod filter (cash | transfer | all)
+    if (payMethod === 'cash') {
+      result = result.filter(r => r.reason === 'ชำระเงินสด' && r.status === 'ชำระแล้ว');
+    } else if (payMethod === 'transfer') {
+      result = result.filter(r => r.reason !== 'ชำระเงินสด' && r.status === 'ชำระแล้ว');
     }
 
     if (search && search.trim()) {

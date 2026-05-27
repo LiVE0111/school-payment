@@ -166,6 +166,7 @@
         <select id="fCls" onchange="loadPay(true)"><option value="ALL">ทุกห้อง</option></select>
         <select id="fYear" onchange="loadPay(true)"><option value="ALL">ทุกปี</option></select>
         <select id="fTerm" onchange="loadPay(true)"><option value="ALL">ทุกเทอม</option><option value="1">เทอม 1</option><option value="2">เทอม 2</option></select>
+        <select id="fPayMethod" onchange="loadPay(true)" title="ประเภทการชำระ"><option value="ALL">วิธีชำระทั้งหมด</option><option value="cash">💵 เงินสด</option><option value="transfer">💳 โอน/QR</option></select>
         <input type="date" id="fDateFrom" onchange="loadPay(true)" title="ตั้งแต่วันที่" style="max-width:150px">
         <input type="date" id="fDateTo" onchange="loadPay(true)" title="ถึงวันที่" style="max-width:150px">
         <button class="boo" onclick="setQuickDate('today')" title="วันนี้" style="padding:6px 10px;font-size:.78rem">วันนี้</button>
@@ -651,6 +652,10 @@ function loadPay(resetPage){
   if (df && df.value) qs.push('dateFrom=' + encodeURIComponent(df.value));
   if (dt && dt.value) qs.push('dateTo=' + encodeURIComponent(dt.value));
 
+  // ⭐ NEW: payMethod filter
+  var pm = document.getElementById('fPayMethod');
+  if (pm && pm.value !== 'ALL') qs.push('payMethod=' + encodeURIComponent(pm.value));
+
   // ⭐ โหลด stats summary แยก (รวมทั้งระบบ ไม่ใช่แค่หน้านี้)
   var summaryQs = 'action=summary'
     + '&year=' + encodeURIComponent(document.getElementById('fYear').value)
@@ -1026,7 +1031,53 @@ function expExcel(){
   // คำนวณจำนวน records
   var totalRecords = _payTotalCount || 0;
 
-  // ถ้าเยอะ — เตือนก่อน
+  // ⭐ NEW: ขั้น 1 — เลือกประเภท Export
+  Swal.fire({
+    title: '<i class="fas fa-file-excel" style="color:#FF6B35"></i> Export ข้อมูล',
+    html:
+      '<div style="text-align:left;font-size:.9rem">'
+      + '<div style="background:#E3F2FD;border-left:4px solid #2196F3;padding:10px;border-radius:8px;margin-bottom:14px;font-size:.82rem;color:#0D47A1">'
+      +   '<i class="fas fa-info-circle"></i> เลือกประเภทรายการที่ต้องการ Export'
+      +   '<div style="margin-top:4px;font-size:.78rem">Filter อื่นๆ (วันที่/ห้อง/ปี/เทอม) จะใช้ตามที่เลือกในหน้าหลัก</div>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;gap:8px">'
+      + '<button class="expOpt" data-method="all" style="text-align:left;padding:14px;border:2px solid #E0E0E0;border-radius:12px;background:white;cursor:pointer;font-family:inherit">'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+      + '<div style="width:42px;height:42px;border-radius:50%;background:#2196F3;color:white;display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas fa-list"></i></div>'
+      + '<div><div style="font-weight:600;color:#333">ทั้งหมด</div><div style="font-size:.78rem;color:#666">ทุกรายการตาม filter ปัจจุบัน</div></div>'
+      + '</div></button>'
+      + '<button class="expOpt" data-method="transfer" style="text-align:left;padding:14px;border:2px solid #E0E0E0;border-radius:12px;background:white;cursor:pointer;font-family:inherit">'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+      + '<div style="width:42px;height:42px;border-radius:50%;background:#4CAF50;color:white;display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas fa-credit-card"></i></div>'
+      + '<div><div style="font-weight:600;color:#333">💳 เฉพาะที่โอนเงิน (QR/สลิป)</div><div style="font-size:.78rem;color:#666">เด็กที่ชำระแล้วผ่านการโอน</div></div>'
+      + '</div></button>'
+      + '<button class="expOpt" data-method="cash" style="text-align:left;padding:14px;border:2px solid #E0E0E0;border-radius:12px;background:white;cursor:pointer;font-family:inherit">'
+      + '<div style="display:flex;align-items:center;gap:12px">'
+      + '<div style="width:42px;height:42px;border-radius:50%;background:#FF9800;color:white;display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas fa-money-bill-wave"></i></div>'
+      + '<div><div style="font-weight:600;color:#333">💵 เฉพาะที่ชำระเงินสด</div><div style="font-size:.78rem;color:#666">เด็กที่ชำระแล้วเป็นเงินสด</div></div>'
+      + '</div></button>'
+      + '</div></div>',
+    width: 480,
+    showConfirmButton: false,
+    showCloseButton: true
+  });
+
+  setTimeout(function() {
+    document.querySelectorAll('.expOpt').forEach(function(btn) {
+      btn.addEventListener('mouseover', function() { this.style.borderColor = '#FF6B35'; this.style.background = '#FFF8F2'; });
+      btn.addEventListener('mouseout', function() { this.style.borderColor = '#E0E0E0'; this.style.background = 'white'; });
+      btn.addEventListener('click', function() {
+        var method = this.getAttribute('data-method');
+        Swal.close();
+        setTimeout(function() { doExportWithMethod(method); }, 200);
+      });
+    });
+  }, 100);
+}
+
+function doExportWithMethod(payMethod) {
+  var totalRecords = _payTotalCount || 0;
+
   var doExport = function(){
     var qs = new URLSearchParams();
     qs.set('action', 'export');
@@ -1041,11 +1092,14 @@ function expExcel(){
     if (tm !== 'ALL') qs.set('term', tm);
     if (sc) qs.set('search', sc);
 
-    // ⭐ NEW: Date filter ใน Export
+    // ⭐ Date filter
     var df = document.getElementById('fDateFrom');
     var dt = document.getElementById('fDateTo');
     if (df && df.value) qs.set('dateFrom', df.value);
     if (dt && dt.value) qs.set('dateTo', dt.value);
+
+    // ⭐ NEW: payMethod
+    if (payMethod && payMethod !== 'all') qs.set('payMethod', payMethod);
 
     var url = '/api/admin/payments?' + qs.toString();
     var token = localStorage.getItem('adminToken') || '';
@@ -1060,8 +1114,10 @@ function expExcel(){
       return;
     }
 
+    var typeLabel = payMethod === 'cash' ? '💵 เงินสด' : (payMethod === 'transfer' ? '💳 โอน' : 'ทั้งหมด');
+
     Swal.fire({
-      title: 'กำลัง Export...',
+      title: 'กำลัง Export ' + typeLabel + '...',
       html: '<i class="fas fa-spinner fa-spin" style="font-size:2rem;color:#FF6B35"></i><br><br>กำลังดึงข้อมูลและสร้างไฟล์ CSV<br><span style="font-size:.8rem;color:#666">(อาจใช้เวลาสักครู่ถ้าข้อมูลเยอะ)</span>',
       showConfirmButton: false,
       allowOutsideClick: false
@@ -1079,8 +1135,9 @@ function expExcel(){
         if (blob.size < 100) throw new Error('ไฟล์ว่าง — อาจไม่มีข้อมูลที่ตรงกับ filter');
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        var dt = new Date().toISOString().slice(0,10);
-        a.download = 'payments_' + dt + '_' + new Date().getTime() + '.csv';
+        var dtStr = new Date().toISOString().slice(0,10);
+        var suffix = payMethod === 'cash' ? '_cash' : (payMethod === 'transfer' ? '_transfer' : '');
+        a.download = 'payments' + suffix + '_' + dtStr + '.csv';
         a.click();
         URL.revokeObjectURL(a.href);
         Swal.close();

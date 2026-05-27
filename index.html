@@ -963,26 +963,37 @@ function renderResult(data){
       var qrHeader = qrType === 'PROMPTPAY' ? 'พร้อมเพย์ นิติบุคคล' : 'PromptPay Bill Payment';
       qrH = '<div class="qr-box">'
           + '<div class="ppb"><span class="ppd"></span>'+ qrHeader +'</div>'
-          + '<div class="ql"><i class="fas fa-qrcode"></i> สแกนจ่าย ฿'+Number(p.amount).toLocaleString('th-TH',{minimumFractionDigits:2})+'</div>'
-          + '<div class="qr-wrap" id="'+qrId+'"><div style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:.8rem">กำลังสร้าง QR...</div></div>';
+          + '<div class="ql"><i class="fas fa-qrcode"></i> ยอด ฿'+Number(p.amount).toLocaleString('th-TH',{minimumFractionDigits:2})+'</div>'
+
+          // ⭐ NEW: ปุ่มแสดง QR (ไม่ render ทันที)
+          + '<div id="'+qrId+'-placeholder" style="margin:14px 0">'
+          +   '<button onclick="showQRConfirm(\''+p.transId+'\',\''+qrId+'\',\''+escapeJs(p.title||'')+'\','+Number(p.amount)+')" '
+          +     'style="width:100%;background:linear-gradient(135deg,#FF6B35,#F7931E);color:white;border:none;border-radius:14px;padding:16px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(255,107,53,.3);display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s">'
+          +     '<i class="fas fa-qrcode" style="font-size:1.2rem"></i> แสดง QR Code เพื่อชำระเงิน'
+          +   '</button>'
+          +   '<div style="text-align:center;font-size:.72rem;color:#999;margin-top:6px"><i class="fas fa-info-circle"></i> กดปุ่มเพื่อแสดง QR Code</div>'
+          + '</div>'
+
+          // ⭐ ที่จะ render QR (ซ่อนไว้ก่อน)
+          + '<div class="qr-wrap" id="'+qrId+'" style="display:none"></div>';
 
       if (qrType === 'BILL_PAYMENT') {
-        qrH += '<div class="qr-refs">'
+        qrH += '<div class="qr-refs" id="'+qrId+'-refs" style="display:none">'
             + '<div class="qr-chip">Ref.1 <strong>'+p.ref1+'</strong></div>'
             + '<div class="qr-chip">Ref.2 <strong>'+p.ref2+'</strong></div>'
             + '</div>';
       } else {
-        qrH += '<div style="font-size:0.74rem;color:#E53935;margin-top:9px;background:#FFEBEE;padding:7px;border-radius:8px;border:1px solid #FFCDD2;font-weight:600;"><i class="fas fa-edit"></i> ผู้ปกครองต้องระบุ รหัสนักเรียน ในช่องบันทึกช่วยจำ</div>';
+        qrH += '<div id="'+qrId+'-refs" style="display:none;font-size:0.74rem;color:#E53935;margin-top:9px;background:#FFEBEE;padding:7px;border-radius:8px;border:1px solid #FFCDD2;font-weight:600;"><i class="fas fa-edit"></i> ผู้ปกครองต้องระบุ รหัสนักเรียน ในช่องบันทึกช่วยจำ</div>';
       }
       // ข้อความเตือนใต้ QR — admin ตั้งเองได้ใน settings (qrNotice)
       var noticeText = (window.__siteCfg && window.__siteCfg.qrNotice) ? window.__siteCfg.qrNotice.trim() : '';
       if (noticeText) {
-        qrH += '<div style="background:#FFF3E0;border:2px solid #FFB74D;border-radius:10px;padding:8px;margin-top:11px;font-size:.78rem;color:#E65100;font-weight:600;line-height:1.4;text-align:center">'
+        qrH += '<div id="'+qrId+'-notice" style="display:none;background:#FFF3E0;border:2px solid #FFB74D;border-radius:10px;padding:8px;margin-top:11px;font-size:.78rem;color:#E65100;font-weight:600;line-height:1.4;text-align:center">'
             + '<i class="fas fa-exclamation-triangle" style="margin-right:4px"></i> '
             + escapeHTML(noticeText)
             + '</div>';
       }
-      qrH += '<div class="qr-hint" style="margin-top:6px"><i class="fas fa-mobile-alt"></i> สแกนได้ทุกแอปธนาคาร</div></div>';
+      qrH += '<div class="qr-hint" id="'+qrId+'-hint" style="display:none;margin-top:6px"><i class="fas fa-mobile-alt"></i> สแกนได้ทุกแอปธนาคาร</div></div>';
 
       // ─── BANK TRANSFER FALLBACK (ถ้า admin ตั้งบัญชีไว้) ───
       var cfg = window.__siteCfg || {};
@@ -1037,66 +1048,142 @@ function renderResult(data){
       + '</div>'+note+transferInfoH+qrH+upH+receiptH+'</div>';
     list.appendChild(card);
 
-    if(showQR){
-      (function(payment, elemId){
-        var attempts = 0;
-        function tryRender(){
-          attempts++;
-          var el = document.getElementById(elemId);
-          if(!el) return;
-          if(typeof qrcode === 'undefined'){
-            if(attempts < 30){ setTimeout(tryRender, 150); return; }
-            el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ โหลด QR Library ไม่สำเร็จ</div>';
-            return;
-          }
-          var payload = buildQR(qrType, fullBillerId, payment.ref1, payment.ref2, payment.amount);
-          if(!payload){
-            var msg = qrType === 'PROMPTPAY' ? 'Tax ID ต้องมี 13 หลัก' : 'Biller ID ต้องมี 15 หลัก';
-            el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ ข้อมูลตั้งค่าไม่ถูกต้อง<br>('+msg+')</div>';
-            return;
-          }
-          try {
-            // typeNumber: 0 = auto detect, errorCorrectionLevel: 'M'
-            var qr = qrcode(0, 'M');
-            qr.addData(payload);
-            qr.make();
-            // สร้าง SVG ที่ใช้ได้บนทุกมือถือ — ไม่พึ่ง image loading
-            // cellSize 6 × moduleCount = ขนาด QR
-            var moduleCount = qr.getModuleCount();
-            var cellSize = Math.floor(180 / moduleCount);
-            var size = cellSize * moduleCount;
-            var margin = Math.floor((180 - size) / 2);
+    // ⭐ QR render moved to showQRConfirm() — รอผู้ปกครองกดปุ่มยืนยันก่อน
+  });
+}
 
-            var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" shape-rendering="crispEdges" style="display:block">';
-            svg += '<rect width="180" height="180" fill="#fff"/>';
-            for (var r = 0; r < moduleCount; r++) {
-              for (var c = 0; c < moduleCount; c++) {
-                if (qr.isDark(r, c)) {
-                  var x = margin + c * cellSize;
-                  var y = margin + r * cellSize;
-                  svg += '<rect x="'+x+'" y="'+y+'" width="'+cellSize+'" height="'+cellSize+'" fill="#000"/>';
-                }
-              }
-            }
-            svg += '</svg>';
-            el.innerHTML = svg;
+/* ════════════════════════════════
+   QR DISPLAY — กดยืนยันก่อนแสดง
+════════════════════════════════ */
+function showQRConfirm(transId, qrId, title, amount){
+  // หา payment ที่ตรงกัน
+  var payment = null;
+  if (Array.isArray(window.__currentPayments)) {
+    payment = window.__currentPayments.find(function(p){ return p.transId === transId; });
+  }
+  if (!payment) {
+    Swal.fire({ icon:'error', title:'ไม่พบข้อมูลบิล', confirmButtonColor:'#FF6B35' });
+    return;
+  }
 
-            // ⭐ NEW: Track เปิด QR (fire and forget)
-            try {
-              fetch('/api/student/search?action=track-qr', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transId: payment.transId })
-              }).catch(function(){});
-            } catch(e){}
-          } catch(err){
-            el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ สร้าง QR ไม่สำเร็จ: '+err.message+'</div>';
+  Swal.fire({
+    title: '<i class="fas fa-shield-alt" style="color:#FF6B35"></i> ยืนยันก่อนแสดง QR',
+    html:
+      '<div style="text-align:left;font-size:.92rem;line-height:1.6">'
+      + '<div style="background:linear-gradient(135deg,#FFF3E0,#FFFDF7);border:2px solid #FF9800;border-radius:12px;padding:14px;margin-bottom:14px">'
+      +   '<div style="font-weight:700;color:#E65100;margin-bottom:6px;font-size:.92rem">📋 รายการที่จะชำระ</div>'
+      +   '<div style="font-size:.88rem;color:#333">' + (title || 'ค่าบำรุงการศึกษา') + '</div>'
+      +   '<div style="font-size:1.4rem;font-weight:700;color:#FF6B35;margin-top:8px">฿' + Number(amount).toLocaleString('th-TH',{minimumFractionDigits:2}) + '</div>'
+      + '</div>'
+
+      + '<div style="background:#FFEBEE;border-left:4px solid #F44336;padding:12px;border-radius:8px;margin-bottom:12px">'
+      +   '<div style="font-weight:700;color:#C62828;margin-bottom:6px">⚠️ คำเตือนสำคัญ</div>'
+      +   '<ul style="margin:0;padding-left:20px;font-size:.84rem;color:#C62828">'
+      +     '<li>เมื่อสแกน QR แล้วจะหักเงินจากบัญชีของท่าน <strong>ทันที</strong></li>'
+      +     '<li>การโอนเงินไม่สามารถยกเลิกได้</li>'
+      +     '<li>กรุณาตรวจสอบยอดให้ถูกต้องก่อนยืนยัน</li>'
+      +     '<li><strong>เก็บสลิปไว้</strong> เพื่ออัปโหลดยืนยันการชำระ</li>'
+      +   '</ul>'
+      + '</div>'
+
+      + '<div style="background:#E8F5E9;border-left:4px solid #4CAF50;padding:10px;border-radius:8px;font-size:.82rem;color:#1B5E20">'
+      +   '<i class="fas fa-check-circle"></i> หลังโอนเงินแล้ว <strong>กรุณาแนบสลิปทันที</strong> เพื่อให้ระบบยืนยันการชำระ'
+      + '</div>'
+      + '</div>',
+    icon: null,
+    showCancelButton: true,
+    confirmButtonText: '<i class="fas fa-qrcode"></i> ยืนยัน แสดง QR',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#FF6B35',
+    cancelButtonColor: '#9E9E9E',
+    width: 480,
+    customClass: { confirmButton: 'swal-confirm-qr' }
+  }).then(function(result){
+    if (!result.isConfirmed) return;
+    renderQRCode(payment, qrId);
+  });
+}
+
+function renderQRCode(payment, qrId){
+  var el = document.getElementById(qrId);
+  var placeholder = document.getElementById(qrId + '-placeholder');
+  var refs = document.getElementById(qrId + '-refs');
+  var notice = document.getElementById(qrId + '-notice');
+  var hint = document.getElementById(qrId + '-hint');
+
+  if (!el) return;
+
+  // ซ่อนปุ่ม + แสดง QR area
+  if (placeholder) placeholder.style.display = 'none';
+  el.style.display = '';
+  if (refs) refs.style.display = '';
+  if (notice) notice.style.display = '';
+  if (hint) hint.style.display = '';
+
+  // ใส่ loading
+  el.innerHTML = '<div style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:.8rem"><i class="fas fa-spinner fa-spin"></i> กำลังสร้าง QR...</div>';
+
+  var attempts = 0;
+  function tryRender(){
+    attempts++;
+    if (typeof qrcode === 'undefined') {
+      if (attempts < 30) { setTimeout(tryRender, 150); return; }
+      el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ โหลด QR Library ไม่สำเร็จ</div>';
+      return;
+    }
+    var payload = buildQR(qrType, fullBillerId, payment.ref1, payment.ref2, payment.amount);
+    if (!payload) {
+      var msg = qrType === 'PROMPTPAY' ? 'Tax ID ต้องมี 13 หลัก' : 'Biller ID ต้องมี 15 หลัก';
+      el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ ข้อมูลตั้งค่าไม่ถูกต้อง<br>('+msg+')</div>';
+      return;
+    }
+    try {
+      var qr = qrcode(0, 'M');
+      qr.addData(payload);
+      qr.make();
+      var moduleCount = qr.getModuleCount();
+      var cellSize = Math.floor(180 / moduleCount);
+      var size = cellSize * moduleCount;
+      var margin = Math.floor((180 - size) / 2);
+
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" shape-rendering="crispEdges" style="display:block">';
+      svg += '<rect width="180" height="180" fill="#fff"/>';
+      for (var r = 0; r < moduleCount; r++) {
+        for (var c = 0; c < moduleCount; c++) {
+          if (qr.isDark(r, c)) {
+            var x = margin + c * cellSize;
+            var y = margin + r * cellSize;
+            svg += '<rect x="'+x+'" y="'+y+'" width="'+cellSize+'" height="'+cellSize+'" fill="#000"/>';
           }
         }
-        setTimeout(tryRender, 50);
-      })(p, qrId);
+      }
+      svg += '</svg>';
+      el.innerHTML = svg;
+
+      // ⭐ Track เปิด QR (fire and forget) — ตอนนี้ผู้ปกครองยืนยันแล้ว
+      try {
+        fetch('/api/student/search?action=track-qr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transId: payment.transId })
+        }).catch(function(){});
+      } catch(e){}
+
+      // Toast แจ้ง
+      Swal.fire({
+        icon: 'success',
+        title: 'QR พร้อมแล้ว!',
+        text: 'สแกนเพื่อชำระเงิน แล้วอย่าลืมแนบสลิปนะคะ',
+        timer: 3000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top'
+      });
+    } catch(err) {
+      el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ สร้าง QR ไม่สำเร็จ: '+err.message+'</div>';
     }
-  });
+  }
+  setTimeout(tryRender, 50);
 }
 
 /* ════════════════════════════════
