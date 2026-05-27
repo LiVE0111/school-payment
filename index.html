@@ -732,6 +732,16 @@ function escapeHTML(s){
   });
 }
 
+// ⭐ escape สำหรับใส่ใน HTML attribute เช่น onclick="func('value')"
+function escapeJs(s){
+  return String(s||'')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '');
+}
+
 function copyAccNumber(num, btn) {
   var fallback = function() {
     var ta = document.createElement('textarea');
