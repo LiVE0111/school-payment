@@ -31,14 +31,24 @@ module.exports = async function handler(req, res) {
       try {
         const { data: payTracking } = await supabase
           .from('payments')
-          .select('qr_opened_at,qr_open_count')
+          .select('qr_opened_at,qr_open_count,qr_open_log')
           .eq('trans_id', transId)
           .maybeSingle();
 
         newCount = ((payTracking && payTracking.qr_open_count) || 0) + 1;
+
+        // ⭐ เก็บ log ทุกครั้ง (เก็บสูงสุด 50 ครั้งล่าสุด)
+        let openLog = [];
+        if (payTracking && Array.isArray(payTracking.qr_open_log)) {
+          openLog = payTracking.qr_open_log;
+        }
+        openLog.push(now);
+        if (openLog.length > 50) openLog = openLog.slice(-50);
+
         const updates = {
           qr_last_opened_at: now,
-          qr_open_count: newCount
+          qr_open_count: newCount,
+          qr_open_log: openLog
         };
         if (!(payTracking && payTracking.qr_opened_at)) updates.qr_opened_at = now;
 
@@ -47,9 +57,14 @@ module.exports = async function handler(req, res) {
           .update(updates)
           .eq('trans_id', transId);
 
-        if (errUp && /qr_open_count|does not exist/i.test(errUp.message)) {
-          // Migration ยังไม่รัน — return ปกติ ไม่ error
-          return ok(res, { tracked: false, reason: 'migration_pending' });
+        if (errUp && /qr_open_count|qr_open_log|does not exist/i.test(errUp.message)) {
+          // qr_open_log column ยังไม่มี — ลองอัปแบบไม่มี log
+          if (/qr_open_log/i.test(errUp.message)) {
+            delete updates.qr_open_log;
+            await supabase.from('payments').update(updates).eq('trans_id', transId);
+          } else {
+            return ok(res, { tracked: false, reason: 'migration_pending' });
+          }
         }
       } catch (e) { /* silent */ }
 

@@ -540,6 +540,31 @@
       .logo-ring{width:84px;height:84px}
       .logo-ring img{width:76px;height:76px}
     }
+
+    /* ─── v29 · แถบขั้นตอน (แบบที่ 1) ─── */
+    .steps{display:flex;align-items:center;gap:6px;margin-bottom:16px;position:relative;z-index:1;font-size:.74rem}
+    .steps .st{display:flex;align-items:center;gap:6px;color:var(--text-mute);white-space:nowrap;transition:color var(--transition)}
+    .steps .st b{width:22px;height:22px;border-radius:50%;background:var(--bg-elev);border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:var(--text-soft)}
+    .steps .st.on{color:var(--o1);font-weight:700}
+    .steps .st.on b{background:var(--grad-main);border-color:transparent;color:#fff;box-shadow:0 3px 8px var(--o-glow)}
+    .steps .st.done{color:#2E7D32}
+    .steps .st.done b{background:#4CAF50;border-color:transparent;color:#fff}
+    .steps .ln{flex:1;height:2px;min-width:10px;background:var(--border);border-radius:2px}
+    .steps .ln.done{background:#4CAF50}
+    /* หัวข้อกลุ่มรายการ */
+    .ph-sub{font-size:.76rem;font-weight:700;color:var(--text-soft);margin:16px 0 10px;display:flex;align-items:center;gap:8px;letter-spacing:.5px}
+    .ph-sub .n{background:var(--grad-main);color:#fff;border-radius:50px;padding:1px 9px;font-size:.7rem}
+    .ph-sub .n.g{background:#4CAF50}
+    .ph-sub .n.b{background:#1E88E5}
+    /* ปุ่มใต้ QR */
+    .qr-act{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+    .btn-save{width:100%;background:var(--grad-main);color:#fff;border:none;border-radius:14px;padding:14px;font-family:'Prompt',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:var(--shadow-glow);display:flex;align-items:center;justify-content:center;gap:8px;transition:all var(--transition)}
+    .btn-save:hover{transform:translateY(-2px)}
+    .btn-save:active{transform:scale(.97)}
+    .how{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:left}
+    .how div{background:var(--bg-card);border:1.5px solid var(--border-soft);border-radius:12px;padding:8px;font-size:.7rem;line-height:1.4;color:var(--text-soft)}
+    .how b{display:block;font-size:.95rem;background:var(--grad-main);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .qr-copy{background:none;border:none;color:var(--o1);font-family:inherit;font-size:.7rem;font-weight:600;cursor:pointer;padding:0 0 0 6px}
   </style>
 <link rel="stylesheet" href="/assets/animations.css">
 <script src="/assets/animations.js"></script>
@@ -630,6 +655,11 @@
 <div class="main">
   <!-- SEARCH -->
   <div class="sc">
+    <div class="steps" id="steps" aria-label="ขั้นตอนการชำระ">
+      <span class="st on"><b>1</b>ค้นหา</span><span class="ln"></span>
+      <span class="st"><b>2</b>สแกนจ่าย</span><span class="ln"></span>
+      <span class="st"><b>3</b>แนบสลิป</span>
+    </div>
     <div class="sl"><i class="fas fa-id-card"></i> กรอกเลขประจำตัวประชาชน 13 หลัก</div>
     <div class="scol">
       <div class="iw">
@@ -907,6 +937,7 @@ function doSearch(){
     return;
   }
   btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> ค้นหา...';
+  setStep(1);
   document.getElementById('skeleton').style.display='block';
   document.getElementById('res').style.display='none';
   document.getElementById('noRes').style.display='none';
@@ -944,12 +975,34 @@ function renderResult(data){
 
   var list = document.getElementById('payList');
   if(!data.payments || !data.payments.length){
+    setStep(4);
     list.innerHTML = '<div class="ac"><i class="fas fa-check-circle"></i><h4>ชำระครบแล้ว!</h4><p>ไม่มีรายการค้างชำระ</p></div>';
     return;
   }
 
+  // ⭐ เรียงกลุ่ม: ต้องชำระ → รอครูตรวจ → ชำระแล้ว (เรียงใน array เดิม เพื่อให้ __currentPayments ตรงกัน)
+  var groupOf = function(p){ return p.status === 'ชำระแล้ว' ? 2 : (p.status === 'กำลังตรวจสอบ' ? 1 : 0); };
+  data.payments.sort(function(a, b){ return groupOf(a) - groupOf(b); });
+  var groupCount = [0, 0, 0];
+  data.payments.forEach(function(p){ groupCount[groupOf(p)]++; });
+  var groupHead = [
+    '<i class="fas fa-exclamation-circle"></i> ต้องชำระ <span class="n">' + groupCount[0] + '</span>',
+    '<i class="fas fa-search"></i> ส่งสลิปแล้ว รอครูตรวจ <span class="n b">' + groupCount[1] + '</span>',
+    '<i class="fas fa-check-circle"></i> ชำระแล้ว <span class="n g">' + groupCount[2] + '</span>'
+  ];
+  setStep(groupCount[0] > 0 ? 2 : 4);
+  var lastGroup = -1;
+
   list.innerHTML = '';
   data.payments.forEach(function(p, idx){
+    var g = groupOf(p);
+    if (g !== lastGroup) {
+      var head = document.createElement('div');
+      head.className = 'ph-sub';
+      head.innerHTML = groupHead[g];
+      list.appendChild(head);
+      lastGroup = g;
+    }
     var bar='bw', pil='pw', ico='⏳', txt='รอชำระ', showQR=false, showUp=false, showReceipt=false, note='';
     if(p.status==='กำลังตรวจสอบ'){ bar='bc';pil='pck';ico='🔍';txt='รอตรวจสอบ'; }
     else if(p.status==='ชำระแล้ว'){ bar='bd';pil='pdn';ico='✅';txt='ชำระแล้ว'; showReceipt=true; }
@@ -981,25 +1034,12 @@ function renderResult(data){
           // ⭐ NEW: ปุ่มแสดง QR (ไม่ render ทันที) + คำเตือนสีแดงใหญ่
           + '<div id="'+qrId+'-placeholder" style="margin:14px 0">'
 
-          // คำเตือนสีแดงใหญ่ — แสดงตลอดเวลา (ก่อนกดปุ่ม)
-          +   '<div style="background:linear-gradient(135deg,#F44336,#D32F2F);color:#fff;border-radius:14px;padding:16px;margin-bottom:14px;text-align:center;box-shadow:0 4px 16px rgba(244,67,54,.4);border:3px solid #B71C1C">'
-          +     '<div style="font-size:1.8rem;margin-bottom:6px"><i class="fas fa-exclamation-triangle"></i></div>'
-          +     '<div style="font-size:1.05rem;font-weight:800;line-height:1.5;margin-bottom:8px">'
-          +       '⚠️ หลังจากสแกนจ่ายแล้ว<br>'
-          +       '<span style="color:#FFEB3B;font-size:1.2rem">กรุณาแนบสลิปการโอนเงิน</span><br>'
-          +       'ให้กับทางโรงเรียน'
-          +     '</div>'
-          +     '<div style="font-size:.85rem;font-weight:600;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:8px;margin-top:8px;line-height:1.4">'
-          +       '📎 เพื่อเป็นหลักฐานยืนยันว่าท่านได้<br>ทำการจ่ายค่าบำรุงการศึกษาแล้ว'
-          +     '</div>'
-          +   '</div>'
-
-          // ปุ่มแสดง QR
+          // ปุ่มแสดง QR (soft, ไม่มีคำเตือนแดงก่อนกด)
           +   '<button onclick="showQRConfirm(\''+p.transId+'\',\''+qrId+'\',\''+escapeJs(p.title||'')+'\','+Number(p.amount)+')" '
-          +     'style="width:100%;background:linear-gradient(135deg,#FF6B35,#F7931E);color:white;border:none;border-radius:14px;padding:18px;font-size:1.05rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(255,107,53,.4);display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s">'
-          +     '<i class="fas fa-qrcode" style="font-size:1.3rem"></i> กดเพื่อแสดง QR Code'
+          +     'style="width:100%;background:linear-gradient(135deg,#FF6B35,#F7931E);color:white;border:none;border-radius:14px;padding:18px;font-size:1.05rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(255,107,53,.3);display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s">'
+          +     '<i class="fas fa-qrcode" style="font-size:1.3rem"></i> สแกนจ่ายด้วย QR'
           +   '</button>'
-          +   '<div style="text-align:center;font-size:.75rem;color:#666;margin-top:8px;font-weight:500"><i class="fas fa-lock"></i> ปลอดภัย — กดเพื่อแสดง QR เมื่อพร้อมจะชำระ</div>'
+          +   '<div style="text-align:center;font-size:.78rem;color:#888;margin-top:8px"><i class="fas fa-info-circle"></i> กดเพื่อแสดง QR เมื่อพร้อมชำระ</div>'
           + '</div>'
 
           // ⭐ ที่จะ render QR (ซ่อนไว้ก่อน)
@@ -1007,8 +1047,8 @@ function renderResult(data){
 
       if (qrType === 'BILL_PAYMENT') {
         qrH += '<div class="qr-refs" id="'+qrId+'-refs" style="display:none">'
-            + '<div class="qr-chip">Ref.1 <strong>'+p.ref1+'</strong></div>'
-            + '<div class="qr-chip">Ref.2 <strong>'+p.ref2+'</strong></div>'
+            + '<div class="qr-chip">Ref.1 <strong>'+p.ref1+'</strong><button class="qr-copy" onclick="copyText(\''+escapeJs(p.ref1)+'\',\'Ref.1\')">คัดลอก</button></div>'
+            + '<div class="qr-chip">Ref.2 <strong>'+p.ref2+'</strong><button class="qr-copy" onclick="copyText(\''+escapeJs(p.ref2)+'\',\'Ref.2\')">คัดลอก</button></div>'
             + '</div>';
       } else {
         qrH += '<div id="'+qrId+'-refs" style="display:none;font-size:0.74rem;color:#E53935;margin-top:9px;background:#FFEBEE;padding:7px;border-radius:8px;border:1px solid #FFCDD2;font-weight:600;"><i class="fas fa-edit"></i> ผู้ปกครองต้องระบุ รหัสนักเรียน ในช่องบันทึกช่วยจำ</div>';
@@ -1021,7 +1061,8 @@ function renderResult(data){
             + escapeHTML(noticeText)
             + '</div>';
       }
-      qrH += '<div class="qr-hint" id="'+qrId+'-hint" style="display:none;margin-top:6px"><i class="fas fa-mobile-alt"></i> สแกนได้ทุกแอปธนาคาร</div></div>';
+      qrH += '<div class="qr-hint" id="'+qrId+'-hint" style="display:none;margin-top:6px"><i class="fas fa-mobile-alt"></i> สแกนด้วยแอปธนาคาร หรือบันทึก QR แล้วเลือกรูปจากอัลบั้ม</div>'
+          + '<div class="qr-act" id="'+qrId+'-act" style="display:none"></div></div>';
 
       // ─── BANK TRANSFER FALLBACK (ถ้า admin ตั้งบัญชีไว้) ───
       var cfg = window.__siteCfg || {};
@@ -1053,8 +1094,8 @@ function renderResult(data){
         qrH += '</div></div>';
       }
     }
-    var upH = showUp ? '<button class="btn-up" onclick="openModal(\''+p.transId+'\')"><i class="fas fa-cloud-upload-alt"></i> แจ้งโอนเงิน / อัปโหลดสลิป</button>' : '';
-    var receiptH = showReceipt ? '<button class="btn-up" style="background:linear-gradient(135deg,#4CAF50,#2E7D32)" onclick="viewReceipt(\''+p.transId+'\')"><i class="fas fa-receipt"></i> ดู / พิมพ์ใบเสร็จ</button>' : '';
+    var upH = showUp ? '<button class="btn-up" onclick="openModal(\''+p.transId+'\')"><i class="fas fa-cloud-upload-alt"></i> โอนแล้ว? แนบสลิปที่นี่</button>' : '';
+    var receiptH = showReceipt ? '<button class="btn-up" style="background:linear-gradient(135deg,#4CAF50,#2E7D32);color:#fff;border-color:transparent" onclick="viewReceipt(\''+p.transId+'\')"><i class="fas fa-receipt"></i> ดู / พิมพ์ใบเสร็จ</button>' : '';
 
     // ⭐ NEW: แสดงวันเวลาโอนถ้ามี (จาก slip ที่ผู้ปกครองอัปแล้ว)
     var transferInfoH = '';
@@ -1095,52 +1136,30 @@ function showQRConfirm(transId, qrId, title, amount){
   }
 
   Swal.fire({
-    title: '<i class="fas fa-exclamation-triangle" style="color:#F44336"></i> <span style="color:#F44336">โปรดอ่านก่อนสแกน!</span>',
+    title: '<i class="fas fa-qrcode" style="color:#FF6B35"></i> พร้อมชำระเงินแล้วใช่ไหม?',
     html:
       '<div style="text-align:left;font-size:.92rem;line-height:1.6">'
 
       // รายการ
-      + '<div style="background:linear-gradient(135deg,#FFF3E0,#FFFDF7);border:2px solid #FF9800;border-radius:12px;padding:14px;margin-bottom:14px">'
+      + '<div style="background:linear-gradient(135deg,#FFF3E0,#FFFDF7);border:2px solid #FFB74D;border-radius:12px;padding:14px;margin-bottom:14px">'
       +   '<div style="font-weight:700;color:#E65100;margin-bottom:6px;font-size:.92rem">📋 รายการที่จะชำระ</div>'
       +   '<div style="font-size:.88rem;color:#333">' + (title || 'ค่าบำรุงการศึกษา') + '</div>'
-      +   '<div style="font-size:1.4rem;font-weight:700;color:#FF6B35;margin-top:8px">฿' + Number(amount).toLocaleString('th-TH',{minimumFractionDigits:2}) + '</div>'
+      +   '<div style="font-size:1.5rem;font-weight:700;color:#FF6B35;margin-top:8px">฿' + Number(amount).toLocaleString('th-TH',{minimumFractionDigits:2}) + '</div>'
       + '</div>'
 
-      // ⭐⭐⭐ คำเตือนใหญ่สีแดง — ตามที่ user ต้องการ
-      + '<div style="background:#F44336;color:#fff;border-radius:14px;padding:18px;margin-bottom:14px;text-align:center;box-shadow:0 4px 16px rgba(244,67,54,.4);animation:pulse 2s infinite">'
-      +   '<div style="font-size:1.6rem;margin-bottom:8px"><i class="fas fa-exclamation-triangle"></i> <i class="fas fa-receipt"></i></div>'
-      +   '<div style="font-size:1.15rem;font-weight:800;line-height:1.5;margin-bottom:8px">'
-      +     'หลังจากสแกนจ่ายแล้ว<br>'
-      +     '<span style="color:#FFEB3B;font-size:1.3rem">กรุณาแนบสลิปการโอนเงิน</span><br>'
-      +     'ให้กับทางโรงเรียน'
-      +   '</div>'
-      +   '<div style="font-size:.92rem;font-weight:600;background:rgba(0,0,0,0.2);padding:8px 12px;border-radius:8px;margin-top:8px">'
-      +     '📎 เพื่อเป็นหลักฐานยืนยันว่าท่านได้<br>ทำการจ่ายค่าบำรุงการศึกษาแล้ว'
-      +   '</div>'
+      // คำแนะนำเป็นมิตร — โทนเขียวอ่อน (ไม่ใช่คำเตือนน่ากลัว)
+      + '<div style="background:#E8F5E9;border-radius:10px;padding:12px;font-size:.85rem;color:#2E7D32;line-height:1.5">'
+      +   '<i class="fas fa-lightbulb" style="color:#66BB6A"></i> <strong>เคล็ดลับ:</strong> หลังโอนเงินเสร็จ '
+      +   'แนบสลิปให้โรงเรียนด้วยนะคะ เพื่อให้ระบบยืนยันการชำระได้รวดเร็ว 😊'
       + '</div>'
-
-      // คำเตือนรอง
-      + '<div style="background:#FFEBEE;border-left:4px solid #F44336;padding:12px;border-radius:8px;margin-bottom:12px">'
-      +   '<div style="font-weight:700;color:#C62828;margin-bottom:6px;font-size:.92rem">⚠️ คำเตือนสำคัญ</div>'
-      +   '<ul style="margin:0;padding-left:20px;font-size:.84rem;color:#C62828;line-height:1.7">'
-      +     '<li>เมื่อสแกน QR แล้วจะหักเงินจากบัญชีของท่าน <strong>ทันที</strong></li>'
-      +     '<li>การโอนเงินไม่สามารถยกเลิกได้</li>'
-      +     '<li>กรุณาตรวจสอบยอดให้ถูกต้องก่อนยืนยัน</li>'
-      +   '</ul>'
-      + '</div>'
-
-      + '<div style="background:#E8F5E9;border-left:4px solid #4CAF50;padding:10px;border-radius:8px;font-size:.85rem;color:#1B5E20;text-align:center;font-weight:600">'
-      +   '<i class="fas fa-info-circle"></i> หากไม่แนบสลิป ระบบจะไม่สามารถยืนยันการชำระได้'
-      + '</div>'
-      + '</div>'
-      + '<style>@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }</style>',
+      + '</div>',
     icon: null,
     showCancelButton: true,
-    confirmButtonText: '<i class="fas fa-qrcode"></i> เข้าใจแล้ว แสดง QR',
-    cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: '#F44336',
-    cancelButtonColor: '#9E9E9E',
-    width: 520,
+    confirmButtonText: '<i class="fas fa-qrcode"></i> แสดง QR Code',
+    cancelButtonText: 'ยังก่อน',
+    confirmButtonColor: '#FF6B35',
+    cancelButtonColor: '#BDBDBD',
+    width: 440,
     customClass: { confirmButton: 'swal-confirm-qr' }
   }).then(function(result){
     if (!result.isConfirmed) return;
@@ -1212,20 +1231,20 @@ function renderQRCode(payment, qrId){
         }
       }
       svg += '</svg>';
+      el.innerHTML = svg;
+      payment._qrPayload = payload;
 
-      // ⭐ NEW: เพิ่มคำเตือนสีแดงใต้ QR ด้วย — เน้นซ้ำ
-      el.innerHTML = svg
-        + '<div style="background:linear-gradient(135deg,#F44336,#C62828);color:#fff;border-radius:12px;padding:14px;margin-top:14px;text-align:center;box-shadow:0 4px 14px rgba(244,67,54,.35);animation:pulseRed 1.5s ease-in-out infinite">'
-        +   '<div style="font-size:1.4rem;margin-bottom:4px"><i class="fas fa-receipt"></i></div>'
-        +   '<div style="font-size:1rem;font-weight:800;line-height:1.4">'
-        +     '⚠️ <span style="color:#FFEB3B">หลังโอนเสร็จ</span><br>'
-        +     '<span style="font-size:1.1rem">อย่าลืมแนบสลิป!</span>'
-        +   '</div>'
-        +   '<div style="font-size:.78rem;margin-top:6px;background:rgba(0,0,0,.2);padding:6px 8px;border-radius:6px;font-weight:500">'
-        +     'เพื่อยืนยันการชำระค่าบำรุงการศึกษา'
-        +   '</div>'
-        + '</div>'
-        + '<style>@keyframes pulseRed { 0%, 100% { box-shadow: 0 4px 14px rgba(244,67,54,.35); } 50% { box-shadow: 0 4px 24px rgba(244,67,54,.7); } }</style>';
+      // ⭐ ปุ่มบันทึก QR + วิธีจ่าย 3 ขั้น (แทนกล่องเขียวเดิม)
+      var act = document.getElementById(qrId + '-act');
+      if (act) {
+        act.innerHTML = '<button class="btn-save" onclick="saveQR(\'' + payment.transId + '\')"><i class="fas fa-download"></i> บันทึก QR ลงเครื่อง</button>'
+          + '<div class="how">'
+          +   '<div><b>1</b>บันทึก QR</div>'
+          +   '<div><b>2</b>แอปธนาคาร › สแกน › เลือกรูป</div>'
+          +   '<div><b>3</b>กลับมากด "แนบสลิป"</div>'
+          + '</div>';
+        act.style.display = '';
+      }
 
       // ⭐ Track เปิด QR (fire and forget) — ตอนนี้ผู้ปกครองยืนยันแล้ว
       try {
@@ -1235,21 +1254,7 @@ function renderQRCode(payment, qrId){
           body: JSON.stringify({ transId: payment.transId })
         }).catch(function(){});
       } catch(e){}
-
-      // Toast แจ้ง — เน้นการแนบสลิป
-      Swal.fire({
-        icon: 'warning',
-        title: '<span style="color:#F44336">⚠️ อย่าลืมแนบสลิป!</span>',
-        html: '<div style="font-size:1rem;color:#C62828;font-weight:600;line-height:1.5">'
-            + 'หลังโอนเสร็จ กดปุ่ม<br>'
-            + '<span style="color:#FF6B35"><strong>"แจ้งโอนเงิน / อัปโหลดสลิป"</strong></span><br>'
-            + 'เพื่อยืนยันการชำระ'
-            + '</div>',
-        timer: 5000,
-        showConfirmButton: true,
-        confirmButtonText: 'เข้าใจแล้ว',
-        confirmButtonColor: '#F44336'
-      });
+      // ไม่มี Toast เด้งซ้ำ — คำเตือนใต้ QR เพียงพอแล้ว (รวม 2 ครั้ง: modal + ใต้ QR)
     } catch(err) {
       el.innerHTML = '<div style="color:#EF5350;font-size:.8rem;padding:8px;text-align:center">❌ สร้าง QR ไม่สำเร็จ: '+err.message+'</div>';
     }
@@ -1274,8 +1279,88 @@ function openModal(tid){
   if (dateInput) { dateInput.value = dateStr; dateInput.max = dateStr; }
   if (timeInput) { timeInput.value = hh + ':' + mn; }
   document.getElementById('upModal').classList.add('open');
+  setStep(3);
 }
-function closeModal(){ document.getElementById('upModal').classList.remove('open'); }
+function closeModal(){ document.getElementById('upModal').classList.remove('open'); setStep(2); }
+
+/* ════════════════════════════════
+   v29 · แถบขั้นตอน / คัดลอก Ref / บันทึก QR
+════════════════════════════════ */
+// active: 1 ค้นหา, 2 สแกนจ่าย, 3 แนบสลิป, 4 = ครบทุกขั้น
+function setStep(active){
+  var box = document.getElementById('steps');
+  if (!box) return;
+  box.querySelectorAll('.st').forEach(function(el, i){
+    var n = i + 1;
+    el.classList.toggle('on', n === active);
+    el.classList.toggle('done', n < active);
+    el.querySelector('b').innerHTML = n < active ? '<i class="fas fa-check"></i>' : String(n);
+  });
+  box.querySelectorAll('.ln').forEach(function(el, i){ el.classList.toggle('done', i + 1 < active); });
+}
+
+function copyText(text, label){
+  var fallback = function(){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(fallback);
+  else fallback();
+  toast('คัดลอก ' + (label || '') + ' แล้ว', 'check-circle');
+}
+
+// สร้างรูป QR (PNG) พร้อมยอดเงิน แล้วแชร์/ดาวน์โหลด — ให้ผู้ปกครองเลือกรูปจากอัลบั้มในแอปธนาคาร
+function saveQR(transId){
+  var p = (window.__currentPayments || []).find(function(x){ return x.transId === transId; });
+  if (!p || !p._qrPayload || typeof qrcode === 'undefined') {
+    Swal.fire({ icon:'error', title:'บันทึก QR ไม่สำเร็จ', text:'กรุณากดแสดง QR อีกครั้ง', confirmButtonColor:'#FF6B35' });
+    return;
+  }
+  var qr = qrcode(0, 'M');
+  qr.addData(p._qrPayload);
+  qr.make();
+  var n = qr.getModuleCount(), cell = 10, quiet = 40;
+  var size = n * cell + quiet * 2;
+  var c = document.createElement('canvas');
+  c.width = size; c.height = size + 130;
+  var g = c.getContext('2d');
+  g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#000000';
+  for (var r = 0; r < n; r++) for (var cc = 0; cc < n; cc++) {
+    if (qr.isDark(r, cc)) g.fillRect(quiet + cc * cell, quiet + r * cell, cell, cell);
+  }
+  g.textAlign = 'center';
+  g.fillStyle = '#1a1a2e';
+  g.font = 'bold 30px Prompt, sans-serif';
+  g.fillText('฿' + Number(p.amount).toLocaleString('th-TH', { minimumFractionDigits:2 }), size / 2, size + 30);
+  g.fillStyle = '#555555';
+  g.font = '18px Prompt, sans-serif';
+  g.fillText(String(p.title || '') + ' ' + p.year + '/' + p.term, size / 2, size + 64);
+  if (p.ref1) g.fillText('Ref.1 ' + p.ref1 + '   Ref.2 ' + (p.ref2 || ''), size / 2, size + 96);
+
+  var fname = 'QR-' + (p.ref1 || transId) + '.png';
+  c.toBlob(function(blob){
+    if (!blob) return;
+    var file = null;
+    try { file = new File([blob], fname, { type:'image/png' }); } catch(e) {}
+    if (file && navigator.canShare && navigator.canShare({ files:[file] })) {
+      navigator.share({ files:[file], title:'QR ชำระค่าบำรุงการศึกษา' }).catch(function(){});
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+    toast('บันทึก QR ลงเครื่องแล้ว', 'check-circle');
+  }, 'image/png');
+}
 document.getElementById('upModal').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
 
 /* ════════════════════════════════
@@ -1327,8 +1412,24 @@ function doUpload(){
     .then(function(){
       btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> ยืนยันการส่งข้อมูล';
       closeModal();
-      Swal.fire({icon:'success',title:'แจ้งโอนเงินสำเร็จ!',text:'รอเจ้าหน้าที่ตรวจสอบ',confirmButtonColor:'#4CAF50'})
-        .then(function(){ doSearch(); });
+      setStep(4);
+      var dot = function(bg, icon){ return '<span style="width:26px;height:26px;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;' + bg + '">' + icon + '</span>'; };
+      Swal.fire({
+        html: '<div style="text-align:center">'
+          + '<div style="width:84px;height:84px;margin:6px auto 10px;border-radius:50%;background:linear-gradient(135deg,#81C784,#43A047);box-shadow:0 10px 24px rgba(67,160,71,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:2.2rem"><i class="fas fa-check"></i></div>'
+          + '<div style="font-size:1.25rem;font-weight:700;color:#2E7D32">ส่งสลิปเรียบร้อย!</div>'
+          + '<div style="font-size:.88rem;color:#558B2F;margin-top:4px">ครูจะตรวจภายใน 1–2 วันทำการ</div>'
+          + '<span class="pill pck" style="margin-top:10px">🔍 รอตรวจสลิป</span>'
+          + '</div>'
+          + '<div style="text-align:left;display:flex;flex-direction:column;gap:12px;margin:18px 6px 0;font-size:.9rem">'
+          +   '<div style="display:flex;align-items:center;gap:10px">' + dot('background:#4CAF50;color:#fff', '<i class="fas fa-check" style="font-size:.7rem"></i>') + 'ส่งสลิปแล้ว</div>'
+          +   '<div style="display:flex;align-items:center;gap:10px">' + dot('border:2.5px solid #29B6F6', '') + 'ครูตรวจสลิป</div>'
+          +   '<div style="display:flex;align-items:center;gap:10px;color:#999">' + dot('border:2.5px solid #ddd', '') + 'ออกใบเสร็จ ดูได้ที่หน้านี้ด้วยเลขบัตรเดิม</div>'
+          + '</div>',
+        confirmButtonText: 'เรียบร้อย',
+        confirmButtonColor: '#4CAF50',
+        width: 380
+      }).then(function(){ doSearch(); });
     })
     .catch(function(err){
       btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> ยืนยันการส่งข้อมูล';
@@ -1435,18 +1536,22 @@ function renderReceiptModal(p, s){
     cancelButtonColor: '#9E9E9E',
     customClass: { popup: 'receipt-popup' }
   }).then(function(r){
-    if (r.isConfirmed) printReceipt();
+    if (r.isConfirmed) printReceipt(html);
   });
 }
 
-function printReceipt(){
-  var area = document.getElementById('receiptArea');
-  if (!area) return;
+function printReceipt(receiptHtml){
+  if (!receiptHtml) {
+    var area = document.getElementById('receiptArea');
+    if (!area) return;
+    receiptHtml = area.outerHTML;
+  }
   var w = window.open('', '_blank', 'width=800,height=600');
+  if (!w) { Swal.fire('แจ้งเตือน', 'เบราว์เซอร์บล็อกป๊อปอัป กรุณาอนุญาต popup สำหรับเว็บนี้', 'warning'); return; }
   w.document.write('<!doctype html><html><head><title>ใบเสร็จ</title>'
     + '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">'
     + '<style>body{font-family:Sarabun,sans-serif;margin:0;padding:20px;background:#fff}@media print{body{padding:0}}</style>'
-    + '</head><body>'+area.outerHTML+'</body></html>');
+    + '</head><body>'+receiptHtml+'</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
 }

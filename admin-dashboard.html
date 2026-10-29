@@ -97,6 +97,71 @@
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 <link rel="stylesheet" href="/assets/animations.css">
+<style>
+  /* ═══ v29 · หน้าภาพรวมวันนี้ (แบบ A) ═══ */
+  :root{--g3:linear-gradient(135deg,#FFA85C 0%,#FF6B35 50%,#E53935 100%)}
+  .tb{background:var(--g3)}
+  .hm-hero{position:relative;overflow:hidden;background:var(--g3);padding:26px 22px 100px;color:#fff}
+  .hm-hero::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.16) 1.6px,transparent 2px);background-size:22px 22px;pointer-events:none}
+  .hm-hero::after{content:'';position:absolute;left:-5%;right:-5%;bottom:-2px;height:64px;background:#fff5f0;border-radius:50% 50% 0 0/64px 64px 0 0}
+  body.dark-mode .hm-hero::after{background:#1F1B17}
+  .hm-blob{position:absolute;border-radius:50%;pointer-events:none}
+  .hm-blob.b1{width:220px;height:220px;top:-70px;right:8%;background:radial-gradient(rgba(255,255,255,.35),transparent 70%)}
+  .hm-blob.b2{width:140px;height:140px;bottom:40px;left:38%;background:radial-gradient(rgba(255,224,130,.45),transparent 70%)}
+  .hm-in{position:relative;z-index:1;max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:20px}
+  .hm-greet{flex:1 1 320px}
+  .hm-date{font-size:.85rem;opacity:.92}
+  .hm-greet h1{margin:4px 0 2px;font-size:1.9rem;font-weight:700;line-height:1.3;text-shadow:0 2px 8px rgba(0,0,0,.15)}
+  .hm-sub{font-size:1rem;opacity:.95}
+  .hm-ringcard{flex:0 1 360px;display:flex;align-items:center;gap:16px;padding:16px 20px;border-radius:24px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35)}
+  .hm-ring{--p:0;width:88px;height:88px;border-radius:50%;background:conic-gradient(#fff calc(var(--p) * 1%),rgba(255,255,255,.25) 0);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .hm-ring>span{width:68px;height:68px;border-radius:50%;background:#E8502F;display:flex;align-items:center;justify-content:center;font-size:1.15rem;font-weight:800}
+  .hm-ringcard .l{font-size:.8rem;opacity:.9}
+  .hm-ringcard .v{font-size:1.6rem;font-weight:800;line-height:1.25}
+  .hm-ringcard .s{font-size:.75rem;opacity:.88}
+  .hm-main{position:relative;z-index:2;max-width:1280px;margin:-78px auto 0;padding:0 16px 100px;display:flex;flex-direction:column;gap:18px}
+  .hm-tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+  .hm-task,.hm-card{background:#fff;border:1.5px solid #FEEADF;border-radius:22px;box-shadow:0 8px 24px rgba(255,87,34,.10);overflow:hidden}
+  .hm-task{display:flex;flex-direction:column}
+  .hm-task .bar{height:6px}
+  .hm-task .in{padding:18px 20px 20px;display:flex;flex-direction:column;gap:10px;flex:1}
+  .hm-task .hd{display:flex;align-items:center;gap:12px}
+  .hm-task .ic{width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.15rem;flex-shrink:0}
+  .hm-task .t{font-weight:600;font-size:1rem}
+  .hm-task .d{font-size:.76rem;color:#888}
+  .hm-task .n{font-size:2.6rem;font-weight:800;line-height:1.1}
+  .hm-task .n small{font-size:.95rem;font-weight:500;color:#888;margin-left:6px}
+  .hm-btn{margin-top:auto;height:44px;border:0;border-radius:50px;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+  .hm-btn.pri{background:var(--g3);color:#fff;box-shadow:0 8px 20px rgba(255,107,53,.32)}
+  .hm-btn.soft{background:#FFF3EE;color:#D9480F}
+  .gtx{background:var(--g3);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .hm-stat{background:#FFF3EE;border-radius:18px;padding:14px 16px;display:flex;align-items:center;gap:12px}
+  .hm-stat .ic{width:42px;height:42px;border-radius:12px;background:#fff;color:#D9480F;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .hm-stat .v{font-size:1.35rem;font-weight:700;color:#D9480F}
+  .hm-stat .v small{font-size:.8rem;font-weight:500;color:#888}
+  .hm-stat .l{font-size:.75rem;color:#888}
+  .hm-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px}
+  @media(max-width:900px){.hm-row{grid-template-columns:1fr}.hm-greet h1{font-size:1.5rem}}
+  .hm-card .top{height:4px;background:var(--g3)}
+  .hm-card .hd{display:flex;align-items:center;gap:10px;padding:16px 18px 8px}
+  .hm-card .hd h3{margin:0;font-size:1rem;font-weight:700;color:#D9480F;flex:1}
+  .hm-card .hd .ic{width:30px;height:30px;border-radius:9px;background:#FFF3EE;color:#D9480F;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+  .hm-link{font-size:.82rem;font-weight:600;color:#D9480F;background:none;border:0;cursor:pointer;font-family:inherit}
+  .hm-av{width:36px;height:36px;border-radius:50%;background:var(--g3);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;border:2px solid #fff;box-shadow:0 3px 8px rgba(255,107,53,.3)}
+  .hm-cls{padding:4px 18px 18px;display:flex;flex-direction:column;gap:12px}
+  .hm-cls .r{display:flex;font-size:.88rem}
+  .hm-cls .r b{flex:1;font-weight:600}
+  .hm-pb{height:10px;border-radius:99px;background:#FFF1E8;overflow:hidden;margin-top:5px}
+  .hm-pb>div{height:100%;border-radius:99px}
+  .hm-empty{text-align:center;color:#999;padding:26px;font-size:.88rem}
+  body.dark-mode .hm-task,body.dark-mode .hm-card{background:#2A241F;border-color:#3D352D;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  body.dark-mode .hm-stat{background:#2A241F}
+  body.dark-mode .hm-stat .ic,body.dark-mode .hm-card .hd .ic{background:#3D2820;color:#FF9A62}
+  body.dark-mode .hm-stat .v,body.dark-mode .hm-card .hd h3,body.dark-mode .hm-link{color:#FF9A62}
+  body.dark-mode .hm-btn.soft{background:#3D2820;color:#FF9A62}
+  body.dark-mode .hm-pb{background:#1F1B17}
+</style>
 <script src="/assets/animations.js"></script>
 <script src="/assets/dark-mode.js"></script>
 <script src="/assets/notifications.js"></script>
@@ -122,7 +187,8 @@
 
 <!-- TABS -->
 <div class="tnw"><div class="tni">
-  <button class="tb2 nav-tab-btn active" onclick="sw('pay',this)"><i class="fas fa-money-bill-wave"></i> รายการชำระ</button>
+  <button class="tb2 nav-tab-btn active" onclick="sw('home',this);loadHome()"><i class="fas fa-home"></i> ภาพรวมวันนี้</button>
+  <button class="tb2 nav-tab-btn" onclick="sw('pay',this)"><i class="fas fa-money-bill-wave"></i> รายการชำระ</button>
   <button class="tb2 nav-tab-btn" onclick="sw('qr',this);loadQRTracking()"><i class="fas fa-qrcode"></i> เปิด QR ยังไม่จ่าย <span id="qrTrackingBadge" style="display:none;background:#FF9800;color:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;margin-left:4px"></span></button>
   <button class="tb2 nav-tab-btn" onclick="sw('bill',this);onBillTab()"><i class="fas fa-file-invoice"></i> แจ้งหนี้</button>
   <button class="tb2 nav-tab-btn" onclick="sw('std',this);loadStudents()"><i class="fas fa-users"></i> นักเรียน</button>
@@ -135,8 +201,85 @@
   <button class="tb2 nav-tab-btn" id="tabHomeroom" style="display:none" onclick="sw('hr',this);loadHomeroom()"><i class="fas fa-chalkboard-teacher"></i> ภาพรวมห้องของฉัน</button>
 </div></div>
 
+<!-- TAB: HOME (ภาพรวมวันนี้) -->
+<div class="tp active" id="tab-home">
+  <section class="hm-hero">
+    <div class="hm-blob b1"></div><div class="hm-blob b2"></div>
+    <div class="hm-in">
+      <div class="hm-greet">
+        <div class="hm-date" id="hmDate"></div>
+        <h1 id="hmHello">สวัสดีค่ะ</h1>
+        <div class="hm-sub" id="hmSub">กำลังโหลดงานวันนี้...</div>
+      </div>
+      <div class="hm-ringcard">
+        <div class="hm-ring" id="hmRing"><span id="hmPct">–</span></div>
+        <div>
+          <div class="l">ยอดที่ชำระแล้วทั้งหมด</div>
+          <div class="v" id="hmPaidAmt">฿–</div>
+          <div class="s" id="hmPaidCnt">&nbsp;</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hm-main">
+    <div class="hm-tasks">
+      <div class="hm-task">
+        <div class="bar" style="background:linear-gradient(90deg,#29B6F6,#1E88E5)"></div>
+        <div class="in">
+          <div class="hd"><div class="ic" style="background:linear-gradient(135deg,#4FC3F7,#1E88E5);box-shadow:0 6px 16px rgba(30,136,229,.3)"><i class="fas fa-inbox"></i></div>
+            <div><div class="t">สลิปรอตรวจ</div><div class="d">ผู้ปกครองส่งสลิปแล้ว รอครูตรวจ</div></div></div>
+          <div class="n"><span class="gtx" id="hmSlipN">–</span><small>รายการ</small></div>
+          <button class="hm-btn pri" onclick="goSlips()">เริ่มตรวจสลิป <i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="hm-task">
+        <div class="bar" style="background:linear-gradient(90deg,#FFC107,#FFB300)"></div>
+        <div class="in">
+          <div class="hd"><div class="ic" style="background:linear-gradient(135deg,#FFD54F,#FF9800);box-shadow:0 6px 16px rgba(255,152,0,.3)"><i class="fas fa-qrcode"></i></div>
+            <div><div class="t">เปิด QR แล้วยังไม่จ่าย</div><div class="d">อาจโอนแล้วแต่ลืมแนบสลิป</div></div></div>
+          <div class="n"><span style="color:#E65100" id="hmQrN">–</span><small>คน</small></div>
+          <button class="hm-btn soft" onclick="goTab('qr')">ดูรายชื่อ</button>
+        </div>
+      </div>
+      <div class="hm-task">
+        <div class="bar" style="background:linear-gradient(90deg,#EF5350,#E53935)"></div>
+        <div class="in">
+          <div class="hd"><div class="ic" style="background:linear-gradient(135deg,#FF8A80,#E53935);box-shadow:0 6px 16px rgba(229,57,53,.3)"><i class="fas fa-comments"></i></div>
+            <div><div class="t">คำถามจากผู้ปกครอง</div><div class="d">ยังไม่ได้ตอบ</div></div></div>
+          <div class="n"><span style="color:#C62828" id="hmInqN">–</span><small>ข้อ</small></div>
+          <button class="hm-btn soft" onclick="goTab('inq')">ตอบคำถาม</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hm-stats">
+      <div class="hm-stat"><div class="ic"><i class="fas fa-user-check"></i></div><div><div class="v" id="hmStPaid">–</div><div class="l">ชำระแล้ว (รายการ)</div></div></div>
+      <div class="hm-stat"><div class="ic"><i class="fas fa-hourglass-half"></i></div><div><div class="v" id="hmStWait">–</div><div class="l">ยังค้างชำระ (รายการ)</div></div></div>
+      <div class="hm-stat"><div class="ic"><i class="fas fa-redo"></i></div><div><div class="v" id="hmStFail">–</div><div class="l">ไม่ผ่าน รอส่งสลิปใหม่</div></div></div>
+      <div class="hm-stat"><div class="ic"><i class="fas fa-calendar-day"></i></div><div><div class="v" id="hmStToday">–</div><div class="l" id="hmStTodayL">ชำระแล้ววันนี้</div></div></div>
+    </div>
+
+    <div class="hm-row">
+      <section class="hm-card">
+        <div class="top"></div>
+        <div class="hd"><div class="ic"><i class="fas fa-image"></i></div><h3>สลิปล่าสุดที่รอตรวจ</h3><button class="hm-link" onclick="goSlips()">ดูทั้งหมด →</button></div>
+        <div class="twrap" style="padding:0 12px 12px"><table class="dt">
+          <thead><tr><th>นักเรียน</th><th>ห้อง</th><th>ยอด</th><th>โอนเมื่อ</th><th></th></tr></thead>
+          <tbody id="hmRecent"><tr><td colspan="5" class="hm-empty">กำลังโหลด...</td></tr></tbody>
+        </table></div>
+      </section>
+      <section class="hm-card">
+        <div class="top"></div>
+        <div class="hd"><div class="ic"><i class="fas fa-chart-bar"></i></div><h3>ห้องที่ต้องตามเก็บ</h3></div>
+        <div class="hm-cls" id="hmCls"><div class="hm-empty">กำลังโหลด...</div></div>
+      </section>
+    </div>
+  </div>
+</div>
+
 <!-- TAB: PAYMENTS -->
-<div class="tp active" id="tab-pay">
+<div class="tp" id="tab-pay">
   <div class="pg">
     <div class="stat-grid" id="statGrid"></div>
 
@@ -589,9 +732,117 @@ document.getElementById('adName').innerText = adminName + (adminRole==='superadm
 document.addEventListener('DOMContentLoaded', function(){
   initYear();
   loadPay();
+  loadHome();
   loadSettings();
   refreshClsDropdowns();
 });
+
+// ══════════════════════════════
+// HOME (ภาพรวมวันนี้)
+// ══════════════════════════════
+var _homeLoaded = false;
+var _homeSlips = [];
+
+function goTab(id){
+  var btn = document.querySelector('.tb2[onclick^="sw(\'' + id + '\'"]');
+  if (btn) btn.click();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function goSlips(){
+  document.getElementById('fStat').value = 'กำลังตรวจสอบ';
+  goTab('pay');
+  loadPay(true);
+}
+
+function loadHome(){
+  var now = new Date();
+  var pad = function(n){ return String(n).padStart(2,'0'); };
+  var today = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+  document.getElementById('hmDate').innerText = now.toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('hmHello').innerText = 'สวัสดี ' + adminName;
+
+  var setN = function(id, v){ var el = document.getElementById(id); if (el) el.innerText = v; };
+
+  Promise.all([
+    api('/admin/payments?action=summary&year=ALL&term=ALL'),
+    api('/admin/payments?action=summary&year=ALL&term=ALL&dateFrom=' + today + '&dateTo=' + today).catch(function(){ return null; }),
+    api('/admin/payments?status=' + encodeURIComponent('กำลังตรวจสอบ') + '&cls=ALL&year=ALL&term=ALL&page=1&pageSize=5').catch(function(){ return { payments: [] }; }),
+    api('/settings?action=inquiries').catch(function(){ return { inquiries: [] }; })
+  ]).then(function(res){
+    var s = res[0] || {}, t = res[1], list = res[2] || {}, inq = res[3] || {};
+    var slipN = s['กำลังตรวจสอบ'] || 0;
+    var qrN = s.qrOpenedNotPaid || 0;
+    var inqN = (inq.inquiries || []).filter(function(i){ return i.status === 'pending'; }).length;
+    setN('hmSlipN', slipN.toLocaleString());
+    setN('hmQrN', qrN.toLocaleString());
+    setN('hmInqN', inqN.toLocaleString());
+    var todo = slipN + qrN + inqN;
+    setN('hmSub', todo > 0 ? 'วันนี้มีงานรอ ' + todo.toLocaleString() + ' รายการ' : 'ไม่มีงานค้าง เรียบร้อยทุกอย่าง');
+
+    var paid = s['ชำระแล้ว'] || 0, total = s.total || 0;
+    var pct = total > 0 ? Math.round(paid * 100 / total) : 0;
+    document.getElementById('hmRing').style.setProperty('--p', pct);
+    setN('hmPct', pct + '%');
+    setN('hmPaidAmt', '฿' + Math.round(s.totalAmount || 0).toLocaleString());
+    setN('hmPaidCnt', 'ชำระแล้ว ' + paid.toLocaleString() + ' จาก ' + total.toLocaleString() + ' รายการ');
+
+    setN('hmStPaid', paid.toLocaleString());
+    setN('hmStWait', (s['รอชำระ'] || 0).toLocaleString());
+    setN('hmStFail', (s['ชำระไม่สำเร็จ'] || 0).toLocaleString());
+    if (t) {
+      setN('hmStToday', '฿' + Math.round(t.totalAmount || 0).toLocaleString());
+      setN('hmStTodayL', 'ชำระแล้ววันนี้ · ' + (t['ชำระแล้ว'] || 0) + ' รายการ');
+    }
+
+    _homeSlips = list.payments || [];
+    renderHomeSlips(_homeSlips);
+    _homeLoaded = true;
+  }).catch(function(e){
+    if (/401|ไม่ได้รับอนุญาต/.test(e.message)) { adminLogout(); return; }
+    setN('hmSub', 'โหลดข้อมูลไม่สำเร็จ: ' + (e.message || 'กรุณาลองใหม่'));
+  });
+
+  if (_charts.data) renderHomeClasses(_charts.data.classData || []);
+}
+
+function renderHomeSlips(rows){
+  var tb = document.getElementById('hmRecent');
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="5" class="hm-empty"><i class="fas fa-check-circle" style="color:#4CAF50"></i> ไม่มีสลิปรอตรวจ</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(function(r){
+    var name = escapeHtml(r.studentName || '-');
+    // ตัวอักษรแรกของชื่อจริง (ตัดคำนำหน้า ด.ญ./ด.ช./นาย/นางสาว ออก)
+    var initial = escapeHtml((r.studentName || '-').replace(/^(ด\.ญ\.|ด\.ช\.|เด็กหญิง|เด็กชาย|นางสาว|น\.ส\.|นาย|นาง)\s*/, '').charAt(0));
+    return '<tr>'
+      + '<td><div style="display:flex;align-items:center;gap:10px"><div class="hm-av">' + initial + '</div>'
+      +   '<div><div style="font-weight:600">' + name + '</div><div style="font-size:.75rem;color:#888">' + escapeHtml(r.title || '') + ' ' + r.year + '/' + r.term + '</div></div></div></td>'
+      + '<td>' + escapeHtml(r.studentClass || '-') + '</td>'
+      + '<td style="font-weight:700">฿' + Number(r.amount).toLocaleString() + '</td>'
+      + '<td style="font-size:.78rem;color:#888">' + fmtThaiDateTime(r.transferAt || r.timestamp, false) + '</td>'
+      + '<td><button class="hm-btn pri" style="height:34px;padding:0 16px;font-size:.8rem;margin:0" onclick="openSlip(\'' + r.transId + '\')">ตรวจ</button></td>'
+      + '</tr>';
+  }).join('');
+}
+
+function renderHomeClasses(classData){
+  var box = document.getElementById('hmCls');
+  if (!box) return;
+  var rows = (classData || []).map(function(c){
+    var tot = (c.paid || 0) + (c.pending || 0);
+    return { cls: c.class, tot: tot, pct: tot > 0 ? Math.round((c.paid || 0) * 100 / tot) : 0 };
+  }).filter(function(r){ return r.tot > 0; })
+    .sort(function(a, b){ return a.pct - b.pct; })
+    .slice(0, 6);
+  if (!rows.length) { box.innerHTML = '<div class="hm-empty">ยังไม่มีข้อมูล</div>'; return; }
+  box.innerHTML = rows.map(function(r){
+    var bar = r.pct < 60 ? 'linear-gradient(90deg,#FFC107,#FFB300)' : (r.pct >= 90 ? 'linear-gradient(90deg,#4CAF50,#43A047)' : 'var(--g3)');
+    var col = r.pct < 60 ? 'color:#E65100' : (r.pct >= 90 ? 'color:#2E7D32' : '');
+    return '<div><div class="r"><b>' + escapeHtml(r.cls) + '</b><span style="font-weight:700;' + col + '">' + r.pct + '%</span></div>'
+      + '<div class="hm-pb"><div style="width:' + r.pct + '%;background:' + bar + '"></div></div></div>';
+  }).join('');
+}
 
 // ── TABS ──
 function sw(id, btn){
@@ -673,6 +924,8 @@ function loadPay(resetPage){
       renderPay(allPayData);
       renderPagination();
       if (!_charts.loaded) { loadCharts(); _charts.loaded = true; }
+      // หลังอนุมัติ/ปฏิเสธ ให้หน้าภาพรวมอัปเดตตัวเลขด้วย
+      if (_homeLoaded && document.getElementById('tab-home').classList.contains('active')) loadHome();
     })
     .catch(function(e){
       if(/401|ไม่ได้รับอนุญาต/.test(e.message)){ adminLogout(); return; }
@@ -898,10 +1151,9 @@ function renderAdminReceipt(rc){
     cancelButtonColor: '#9E9E9E'
   }).then(function(r){
     if (r.isConfirmed) {
-      var area = document.getElementById('adminReceiptArea');
-      if (!area) return;
       var w = window.open('', '_blank', 'width=800,height=600');
-      w.document.write('<!doctype html><html><head><title>ใบเสร็จ</title><link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet"><style>body{font-family:Sarabun,sans-serif;margin:0;padding:20px;background:#fff}@media print{body{padding:0}}</style></head><body>'+area.outerHTML+'</body></html>');
+      if (!w) { Swal.fire('แจ้งเตือน', 'เบราว์เซอร์บล็อกป๊อปอัป กรุณาอนุญาต popup สำหรับเว็บนี้', 'warning'); return; }
+      w.document.write('<!doctype html><html><head><title>ใบเสร็จ</title><link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet"><style>body{font-family:Sarabun,sans-serif;margin:0;padding:20px;background:#fff}@media print{body{padding:0}}</style></head><body>'+html+'</body></html>');
       w.document.close();
       setTimeout(function(){ w.print(); }, 500);
     }
@@ -967,7 +1219,8 @@ function doCash(id){
 
 // ── SLIP MODAL ──
 function openSlip(tid){
-  var p = allPayData.find(function(r){ return r.transId===tid; });
+  var p = allPayData.find(function(r){ return r.transId===tid; })
+       || _homeSlips.find(function(r){ return r.transId===tid; });
   if(!p) return;
   document.getElementById('slipImg').src = p.slipUrl;
 
@@ -1066,10 +1319,8 @@ function expExcel(){
       + '</div></div>',
     width: 480,
     showConfirmButton: false,
-    showCloseButton: true
-  });
-
-  setTimeout(function() {
+    showCloseButton: true,
+    didOpen: function() {
     document.querySelectorAll('.expOpt').forEach(function(btn) {
       btn.addEventListener('mouseover', function() { this.style.borderColor = '#FF6B35'; this.style.background = '#FFF8F2'; });
       btn.addEventListener('mouseout', function() { this.style.borderColor = '#E0E0E0'; this.style.background = 'white'; });
@@ -1079,7 +1330,8 @@ function expExcel(){
         setTimeout(function() { doExportWithMethod(method); }, 200);
       });
     });
-  }, 100);
+    }
+  });
 }
 
 function doExportWithMethod(payMethod) {
@@ -1188,6 +1440,8 @@ var _charts = {};
 
 function loadCharts(){
   api('/admin/stats?action=charts').then(function(r){
+    _charts.data = r;
+    renderHomeClasses(r.classData || []);
     renderStatusChart(r.statusData || []);
     renderDailyChart(r.dailyData || []);
     renderClassChart(r.classData || []);
@@ -3007,6 +3261,7 @@ function confirmCashEntry(transId, name, amount) {
 // ════════════════════════════════════════════════════════════
 // ⭐ QR TRACKING — รายการที่เปิด QR แล้วยังไม่จ่าย
 // ════════════════════════════════════════════════════════════
+var _qrTrackingData = [];
 function loadQRTracking() {
   var tb = document.getElementById('qrTrackingTb');
   if (!tb) return;
@@ -3014,6 +3269,7 @@ function loadQRTracking() {
 
   api('/admin/payments?action=qr-tracking').then(function(r) {
     var list = r.tracking || [];
+    _qrTrackingData = list;
     var cnt = document.getElementById('qrTrackingCount');
     var badge = document.getElementById('qrTrackingBadge');
     if (cnt) cnt.textContent = list.length;
@@ -3027,26 +3283,117 @@ function loadQRTracking() {
       return;
     }
 
-    tb.innerHTML = list.map(function(p) {
+    tb.innerHTML = list.map(function(p, idx) {
       var lastOpen = fmtThaiDateTime(p.qrLastOpenedAt, true);
+      var firstOpen = fmtThaiDateTime(p.qrOpenedAt, true);
       var relTime = fmtRelative(p.qrLastOpenedAt);
       var urgentColor = (p.qrOpenCount >= 3) ? '#F44336' : (p.qrOpenCount >= 2 ? '#FF9800' : '#666');
 
-      return '<tr>'
-        + '<td>' + (p.studentName || '-') + '</td>'
+      // ⭐ แสดงรายละเอียดนักเรียน + วันเวลาครั้งล่าสุดและครั้งแรก
+      var detailHtml = '<div style="font-size:.82rem;font-weight:600">' + lastOpen + '</div>'
+        + '<div style="font-size:.7rem;color:#999">' + relTime + '</div>';
+      if (p.qrOpenCount > 1 && p.qrOpenedAt) {
+        detailHtml += '<div style="font-size:.68rem;color:#bbb;margin-top:2px">ครั้งแรก: ' + firstOpen + '</div>';
+      }
+
+      // ปุ่มดูประวัติทั้งหมด (ถ้ามี log)
+      var historyBtn = '<button class="bic" style="background:#7B1FA2" title="ดูประวัติเปิด QR" onclick="event.stopPropagation();showQROpenHistory(' + idx + ')"><i class="fas fa-history"></i></button>';
+
+      return '<tr style="cursor:pointer" onclick="showQROpenHistory(' + idx + ')" title="คลิกเพื่อดูประวัติการเปิด QR" onmouseover="this.style.background=\'#F3E5F5\'" onmouseout="this.style.background=\'\'">'
+        + '<td>' + (p.studentName || '-') + '<div style="font-size:.7rem;color:#999">รหัส ' + (p.studentId || '-') + ' · ' + p.idCard + '</div></td>'
         + '<td>' + (p.studentClass || '-') + '</td>'
         + '<td>' + (p.title || '-') + '<div style="font-size:.7rem;color:#999">ปี ' + p.year + '/' + p.term + '</div></td>'
         + '<td style="text-align:right;font-weight:600;color:#FF6B35">฿' + Number(p.amount || 0).toLocaleString() + '</td>'
-        + '<td><div style="font-size:.82rem">' + lastOpen + '</div><div style="font-size:.7rem;color:#999">' + relTime + '</div></td>'
+        + '<td>' + detailHtml + '</td>'
         + '<td style="text-align:center"><span style="background:' + urgentColor + ';color:white;padding:3px 10px;border-radius:10px;font-weight:600;font-size:.82rem">' + p.qrOpenCount + '</span></td>'
-        + '<td>'
-        +   '<button class="bic" style="background:#FF9800" title="บันทึกเงินสด" onclick="confirmCashEntry(\'' + p.transId + '\',\'' + escapeJs(p.studentName) + '\',' + (p.amount || 0) + ')"><i class="fas fa-money-bill"></i></button>'
+        + '<td style="white-space:nowrap">'
+        +   historyBtn
+        +   '<button class="bic" style="background:#FF9800" title="บันทึกเงินสด" onclick="event.stopPropagation();confirmCashEntry(\'' + p.transId + '\',\'' + escapeJs(p.studentName) + '\',' + (p.amount || 0) + ')"><i class="fas fa-money-bill"></i></button>'
         + '</td>'
         + '</tr>';
     }).join('');
   }).catch(function(e) {
     tb.innerHTML = '<tr><td colspan="7" style="color:#F44336;padding:20px;text-align:center">Error: ' + e.message + '</td></tr>';
   });
+}
+
+// ⭐ แสดงประวัติเปิด QR ทั้งหมดของนักเรียนคนนั้น
+function showQROpenHistory(idx) {
+  var p = _qrTrackingData[idx];
+  if (!p) return;
+  // เรียงเก่า→ใหม่ เพื่อให้ครั้งที่ 1 = ครั้งแรกสุด
+  var logAsc = Array.isArray(p.qrOpenLog) ? p.qrOpenLog.slice() : [];
+  // แสดงใหม่→เก่า (ครั้งล่าสุดอยู่บน) แต่เลขครั้งนับตามจริง
+  var log = logAsc.slice().reverse();
+
+  var logHtml = '';
+  if (log.length === 0) {
+    // ถ้าไม่มี log array — ใช้ first + last
+    var fallback = [];
+    if (p.qrLastOpenedAt) fallback.push({ ts: p.qrLastOpenedAt, num: p.qrOpenCount, latest: true });
+    if (p.qrOpenedAt && p.qrOpenCount > 1) fallback.push({ ts: p.qrOpenedAt, num: 1, latest: false });
+    if (fallback.length === 0) {
+      logHtml = '<div style="text-align:center;color:#999;padding:20px">ไม่มีประวัติละเอียด<br><small>(รัน migration-v28-7 เพื่อเก็บประวัติทุกครั้ง)</small></div>';
+    } else {
+      logHtml = fallback.map(function(item){
+        return renderQRLogItem(item.num, item.ts, item.latest);
+      }).join('');
+    }
+  } else {
+    logHtml = log.map(function(ts, i) {
+      var num = log.length - i;  // ครั้งที่จริง
+      var isLatest = (i === 0);
+      return renderQRLogItem(num, ts, isLatest);
+    }).join('');
+  }
+
+  Swal.fire({
+    title: '<i class="fas fa-history" style="color:#7B1FA2"></i> ประวัติการเปิด QR',
+    html:
+      '<div style="text-align:left;font-size:.9rem">'
+      + '<div style="background:linear-gradient(135deg,#F3E5F5,#fff);padding:14px;border-radius:10px;margin-bottom:12px">'
+      +   '<div style="font-weight:700;font-size:1rem">' + p.studentName + '</div>'
+      +   '<div style="font-size:.78rem;color:#666;margin-top:2px">' + p.studentClass + ' · รหัส ' + (p.studentId || '-') + '</div>'
+      +   '<div style="font-size:.72rem;color:#999;margin-top:1px">เลขบัตร: ' + p.idCard + '</div>'
+      +   '<div style="background:#FFF3E0;border-radius:8px;padding:8px 10px;margin-top:8px">'
+      +     '<div style="font-size:.85rem;color:#E65100;font-weight:600">' + (p.title || 'ค่าบำรุงการศึกษา') + '</div>'
+      +     '<div style="font-size:.8rem;color:#666;margin-top:2px">📅 ปีการศึกษา ' + p.year + ' · เทอม ' + p.term + ' · <span style="color:#FF6B35;font-weight:700">฿' + Number(p.amount || 0).toLocaleString() + '</span></div>'
+      +   '</div>'
+      + '</div>'
+      + '<div style="font-weight:700;font-size:.88rem;margin-bottom:8px;color:#7B1FA2"><i class="fas fa-clock"></i> เปิด QR ทั้งหมด ' + p.qrOpenCount + ' ครั้ง</div>'
+      + '<div style="max-height:320px;overflow-y:auto">' + logHtml + '</div>'
+      + '</div>',
+    width: 480,
+    showCloseButton: true,
+    showConfirmButton: false
+  });
+}
+
+// helper: render แต่ละบรรทัดประวัติ
+function renderQRLogItem(num, ts, isLatest) {
+  return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + (isLatest ? '#FFF3E0' : '#F9F9F9') + ';border-radius:8px;margin-bottom:6px;border-left:3px solid ' + (isLatest ? '#FF9800' : '#E0E0E0') + '">'
+    + '<div style="width:30px;height:30px;border-radius:50%;background:' + (isLatest ? '#FF9800' : '#9E9E9E') + ';color:white;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0">' + num + '</div>'
+    + '<div style="flex:1">'
+    +   '<div style="font-size:.7rem;color:#999;font-weight:600">ครั้งที่ ' + num + '</div>'
+    +   '<div style="font-size:.9rem;font-weight:' + (isLatest ? '700' : '600') + ';color:#333">' + fmtThaiDateTimeFull(ts) + '</div>'
+    +   '<div style="font-size:.7rem;color:#999">' + fmtRelative(ts) + '</div>'
+    + '</div>'
+    + (isLatest ? '<span style="background:#FF9800;color:white;font-size:.68rem;padding:3px 10px;border-radius:8px;font-weight:600">ล่าสุด</span>' : '')
+    + '</div>';
+}
+
+// format วันเวลาแบบเต็ม (ภาษาไทย) เช่น "1 พ.ค. 2569 เวลา 16:00 น."
+function fmtThaiDateTimeFull(iso) {
+  if (!iso) return '-';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '-';
+  var months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var day = d.getDate();
+  var mon = months[d.getMonth()];
+  var yy = d.getFullYear() + 543;
+  var hh = String(d.getHours()).padStart(2, '0');
+  var mn = String(d.getMinutes()).padStart(2, '0');
+  return day + ' ' + mon + ' ' + yy + ' เวลา ' + hh + ':' + mn + ' น.';
 }
 
 // Auto refresh QR badge ทุก 5 นาที

@@ -276,6 +276,7 @@ module.exports = async function handler(req, res) {
           qrOpenedAt: p.qr_opened_at,
           qrLastOpenedAt: p.qr_last_opened_at,
           qrOpenCount: p.qr_open_count || 0,
+          qrOpenLog: Array.isArray(p.qr_open_log) ? p.qr_open_log : [],
           createdAt: p.created_at
         };
       });

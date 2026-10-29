@@ -18,10 +18,10 @@
     nav.className = 'mobile-bottom-nav';
     nav.innerHTML = `
       <div class="mobile-bottom-nav-inner">
+        <button class="mb-item" data-tab="home"><i class="fas fa-home"></i><span>ภาพรวม</span></button>
         <button class="mb-item" data-tab="pay"><i class="fas fa-money-bill"></i><span>รายการ</span></button>
         <button class="mb-item" data-tab="bill"><i class="fas fa-file-invoice"></i><span>แจ้งหนี้</span></button>
         <button class="mb-item" data-tab="std"><i class="fas fa-users"></i><span>นักเรียน</span></button>
-        <button class="mb-item" data-tab="cfg"><i class="fas fa-cog"></i><span>ตั้งค่า</span></button>
         <button class="mb-item" data-tab="more"><i class="fas fa-ellipsis-h"></i><span>เพิ่มเติม</span></button>
       </div>
     `;
@@ -42,7 +42,7 @@
     });
 
     // Set initial active
-    updateActive('pay');
+    updateActive('home');
 
     // Listen for tab changes (sync with top nav)
     document.querySelectorAll('.tb2, [onclick*="sw("]').forEach(function(btn){
@@ -64,6 +64,7 @@
     Swal.fire({
       title: '<i class="fas fa-ellipsis-h" style="color:#FF6B35"></i> เมนูเพิ่มเติม',
       html: '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px 0">'
+        + makeMoreItem('cfg', 'fa-cog', 'ตั้งค่า', '#607D8B')
         + makeMoreItem('cls', 'fa-school', 'ห้องเรียน', '#1976D2')
         + makeMoreItem('inq', 'fa-comments', 'คำถาม', '#9C27B0')
         + makeMoreItem('sto', 'fa-database', 'พื้นที่', '#FF9800')
